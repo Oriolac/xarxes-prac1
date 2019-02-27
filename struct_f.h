@@ -25,6 +25,6 @@ struct client
 {
     char nom[15];
     char mac[13];
-    char server[15];
+    char server[20];
     int serverPort;
 };

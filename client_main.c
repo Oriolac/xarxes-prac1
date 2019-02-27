@@ -11,6 +11,7 @@
 #include "struct_f.h"
 
 #define NUM_CHARS 15
+#define LENGTH_BUFF 20
 
 void actualitzarHora(struct t *temps);
 void errorArxiuConfiguracio(struct t *temps, char arxiu[]);
@@ -193,6 +194,9 @@ void connexioUDP(struct t *temps, struct args *args, struct client c)
 	int fd;
 	struct hostent *ent;
 	int a;
+	char paquet[LENGTH_BUFF];
+
+	
 	fd = socket(AF_INET,SOCK_DGRAM, 0);
 	if(fd < 0)
 	{
@@ -200,7 +204,6 @@ void connexioUDP(struct t *temps, struct args *args, struct client c)
 		printf("%s: ERROR =>  No s'ha pogut crear socket.\n", temps->hora);
 		exit(-1);
 	}
-
 	ent=gethostbyname(c.server);
 	if(!ent)
 	{
@@ -211,7 +214,7 @@ void connexioUDP(struct t *temps, struct args *args, struct client c)
 
 	memset(&addr_serv, 0, sizeof(struct sockaddr_in));
 	addr_serv.sin_family=AF_INET;
-	addr_serv.sin_addr.s_addr=((struct in_addr *) ent->h_addr_list)->s_addr;
+	addr_serv.sin_addr.s_addr=((struct in_addr *) ent->h_addr_list[0])->s_addr;
 	addr_serv.sin_port=htons(c.serverPort);
 
 	/* Paquet */
