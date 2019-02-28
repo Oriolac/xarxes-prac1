@@ -23,8 +23,16 @@ struct udpSock
 
 struct client
 {
-    char nom[15];
+    char nom[7];
     char mac[13];
     char server[20];
     int serverPort;
+};
+struct paquet
+{
+    unsigned char tipus;
+    char equip[7];
+    char mac[13];
+    char random[7];
+    char dades[50];
 };

@@ -194,7 +194,8 @@ void connexioUDP(struct t *temps, struct args *args, struct client c)
 	int fd;
 	struct hostent *ent;
 	int a;
-	char paquet[LENGTH_BUFF];
+	char paquet[LENGTH_BUFF], dades[50];
+	struct paquet paquete;
 
 	
 	fd = socket(AF_INET,SOCK_DGRAM, 0);
@@ -218,8 +219,16 @@ void connexioUDP(struct t *temps, struct args *args, struct client c)
 	addr_serv.sin_port=htons(c.serverPort);
 
 	/* Paquet */
-	
-	a=sendto(fd,temps->hora,strlen(temps->hora)+1,0,(struct sockaddr*)&addr_serv,sizeof(addr_serv));
+
+	memset(&paquete, 0, sizeof(paquete));
+	paquete.tipus=1;
+	strcpy(paquete.equip, c.nom);
+	strcpy(paquete.mac, c.mac);
+	strcpy(paquete.random, "1234567");
+	memset(&dades, 0, sizeof(dades));
+	strcpy(paquete.dades, dades);
+
+	a=sendto(fd,&paquete,sizeof(paquete),0,(struct sockaddr*)&addr_serv,sizeof(addr_serv));
     if(a<0)
     {
 		actualitzarHora(temps);
