@@ -20,7 +20,7 @@ void error_arxiu_configuracio(struct t *temps, char arxiu[]);
 void print_if_debug(int debug, struct t *temps, const char *fmt, ...);
 void lectura_parametres(int argc, char** argv, struct t *temps, struct args *args);
 FILE *obrir_arxius_config(char arxiu[NUM_CHARS_ARXIU], struct t *temps);
-void configuracio_client(struct args *args, struct server *s, struct client *c);
+void configuracio(struct args *args, struct server *s, struct client *c);
 void connexio_UDP(struct t *temps, struct args *args, struct server s, struct client c);
 
 /*
@@ -38,18 +38,14 @@ int main(int argc, char **argv)
 	struct server s;
 	struct client c;
 
-	print_if_debug(1, &temps, "Hola %s", "hols");
-
-    args.debug = 0;
 
 	/* Inicialitzar la hora per evitar el warning */
 	temps.t=time(NULL);
-	temps.tm=localtime(&temps.t);
 
 	/* Lectura dels paràmetres i  opertura dels arxius */
 	lectura_parametres(argc, argv, &temps, &args);
 
-	configuracio_client(&args, &s, &c);
+	configuracio(&args, &s, &c);
 
 	/* Connexió UDP. */
 	connexio_UDP(&temps, &args, s, c);
@@ -82,14 +78,23 @@ void error_arxiu_configuracio(struct t *temps, char arxiu[])
 }
 
 /*
-*/
+ * Funció: print_if_debug
+ * -----------------
+ * En cas que estigui en mode debug, printeja el text.
+ */
 void print_if_debug(int debug, struct t *temps, const char *fmt, ...)
 {
 	char *string;
+	int i;
 	va_list	args;
 	va_start(args,fmt);
 	if(debug == 1)
 	{
+		if(temps == NULL){
+			struct t temps2;
+			temps2.t=time(NULL);
+			temps = &temps2;
+		}
 		actualitzar_hora(temps);
 		printf("%s: DEBUG => ",temps->hora);
 		while( *fmt != '\0')
@@ -99,6 +104,11 @@ void print_if_debug(int debug, struct t *temps, const char *fmt, ...)
 				++fmt;
 				string = va_arg(args,char*);
 				printf("%s", string);
+			} else if(*fmt == '%' && *(fmt+1)== 'i')
+			{
+				++fmt;
+				i = va_arg(args,int);
+				printf("%i", i);
 			} else {
 				printf("%c", *fmt);
 			}
@@ -121,12 +131,10 @@ void lectura_parametres(int argc, char** argv, struct t *temps, struct args *arg
     char arxiuSoft[NUM_CHARS_ARXIU];
     char arxiuEquip[NUM_CHARS_ARXIU];
 
-	/* Per defecte, l'arxiu de dades de configuració del client serà "client.cfg". No obrim el fitxer fins després 
-	* ja que es poden produir canvis.
-	* L'arxiu de configuració de l'equip per defecte és "boot.cfg."
-	*/
+	/* Guardem tot allò per defecte. */
 	sprintf(arxiuSoft, "client.cfg");
 	sprintf(arxiuEquip, "boot.cfg");
+    args->debug = 0;
 
 	/* Mira si existeixen paràmetres com el -d o -c */
 	for(i = 1; i < argc; i++){
@@ -135,7 +143,7 @@ void lectura_parametres(int argc, char** argv, struct t *temps, struct args *arg
 			/* S'activa el Mode DEBUG */
 			args->debug = 1;
 			actualitzar_hora(temps);
-			printf("%s: DEBUG =>  Mode DEBUG ON.\n", temps->hora);
+			printf("%s: DEBUG => Mode DEBUG ON.\n", temps->hora);
 		} else if(strcmp(argv[i], "-c") == 0){
 
 			/* Es canvia el nom de l'arxiu. */
@@ -143,22 +151,15 @@ void lectura_parametres(int argc, char** argv, struct t *temps, struct args *arg
 				error_arxiu_configuracio(temps, "");
 			}
 			sprintf(arxiuSoft, "%s",argv[i+1]);
-			if(args->debug == 1){
-				actualitzar_hora(temps);
-				printf("%s: DEBUG =>  Arxiu de dades de software modificat: %s\n", temps->hora, arxiuSoft);
-			}
+			print_if_debug(args->debug, temps, "Arxiu de dades de software modificat: %s", arxiuSoft);
 		} else if(strcmp(argv[i], "-f") == 0){
 			if(argc <= i+1){ 	
 				error_arxiu_configuracio(temps, "");
 			}
 			sprintf(arxiuEquip, "%s", argv[i + 1]);
-			if(args->debug == 1){
-				actualitzar_hora(temps);
-				printf("%s: DEBUG =>  Arxiu de configuració de l'equip modificat: %s\n", temps->hora, arxiuEquip);
-			}
+			print_if_debug(args->debug, temps, "Arxiu de configuració de l'equip modificat: %s", arxiuEquip);
 		}
 	}
-
 	print_if_debug(args->debug,temps, "Llegits paràmetres línia de comandes.");
 
 	args->fitxerSoft = obrir_arxius_config(arxiuSoft, temps);
@@ -180,31 +181,28 @@ FILE *obrir_arxius_config(char arxiu[NUM_CHARS_ARXIU], struct t *temps)
 	return fd;
 }
 /*
- * Funció: configuracio_client
+ * Funció: configuracio
  * ----------------- 
- * Retorna una estructura tipus client.
+ * Mira el fitxer de configuració de software.
  */
-void configuracio_client(struct args *args, struct server *s, struct client *c)
+void configuracio(struct args *args, struct server *s, struct client *c)
 {
 	char buf[20];
 	char buf2[20];
 
-	printf("config_client reached\n");
 	while(fscanf(args->fitxerSoft,"%s %s", buf, buf2) != EOF){
 		if(strcmp(buf, "Nom") == 0){
-			printf("Putting name in struct %s\n", buf2);
 			strcpy(c->equip,buf2);
 		} else if(strcmp(buf, "MAC") == 0){
-			printf("Putting MAC in struct %s\n", buf2);
 			strcpy(c->mac,buf2);
 		} else if(strcmp(buf, "Server") == 0){
-			printf("Putting Server in struct %s\n", buf2);
 			strcpy(s->server,buf2);
 		} else if(strcmp(buf, "Server-port") == 0){
-			printf("Putting port in struct %s\n", buf2);
 			s->serverPort=atoi(buf2);
 		}
 	}
+	print_if_debug(args->debug, NULL, "El client és:\n\t\tNom: %s\n\t\tMAC: %s", c->equip, c->mac);
+	print_if_debug(args->debug, NULL, "El servidor té:\n\t\tAdreça: %s\n\t\tPort: %i", s->server, s->serverPort);
 }
 
 /*
@@ -221,7 +219,6 @@ void connexio_UDP(struct t *temps, struct args *args, struct server s, struct cl
 	struct hostent *ent;
 	int a;
 	char dades[50];
-	printf("Initialized variables to connect server udp\n");
 	
 	fd = socket(AF_INET,SOCK_DGRAM, 0);
 	if(fd < 0)
@@ -230,9 +227,9 @@ void connexio_UDP(struct t *temps, struct args *args, struct server s, struct cl
 		printf("%s: ERROR =>  No s'ha pogut crear socket.\n", temps->hora);
 		exit(-1);
 	}
-	printf("Reached get host by name\n");
+	print_if_debug(args->debug, temps, "Realitzat el socket UDP.");
+
 	ent=gethostbyname(s.server);
-	printf("later get host by name\n");
 	if(!ent)
 	{
 		actualitzar_hora(temps);
@@ -240,14 +237,12 @@ void connexio_UDP(struct t *temps, struct args *args, struct server s, struct cl
 		exit(-1);
 	}
 
-	printf("memset reached\n");
 	memset(&addr_serv, 0, sizeof(struct sockaddr_in));
 	addr_serv.sin_family=AF_INET;
 	addr_serv.sin_addr.s_addr=((struct in_addr *) ent->h_addr_list[0])->s_addr;
 	addr_serv.sin_port=htons(s.serverPort);
-	printf("Adrr init\n");
-	/* Paquet */
 
+	/* Paquet */
 	memset(&p, 0, sizeof(p));
 	p.type=1;
 	strcpy(p.equip, c.equip);
