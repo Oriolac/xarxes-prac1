@@ -18,12 +18,12 @@
 void actualitzar_hora(struct t *temps);
 void print_with_time(const char *fmt, ...);
 void print_string(const char *fmt, va_list args);
-void error_arxiu_configuracio(struct t *temps, char arxiu[]);
-void print_if_debug(int debug, struct t *temps, const char *fmt, ...);
-void lectura_parametres(int argc, char** argv, struct t *temps, struct args *args);
-FILE *obrir_arxius_config(char arxiu[NUM_CHARS_ARXIU], struct t *temps);
+void error_arxiu_configuracio( char arxiu[]);
+void print_if_debug(int debug, const char *fmt, ...);
+void lectura_parametres(int argc, char** argv, struct args *args);
+FILE *obrir_arxius_config(char arxiu[NUM_CHARS_ARXIU]);
 void configuracio_software(struct args *args, struct server *s, struct client *c);
-void connexio_UDP(struct t *temps, int debug, struct server s, struct client c);
+void connexio_UDP(int debug, struct server s, struct client c);
 
 /*
  * Funció: main
@@ -45,11 +45,11 @@ int main(int argc, char **argv)
 	temps.t=time(NULL);
 
 	/* Lectura dels paràmetres i  opertura dels arxius */
-	lectura_parametres(argc, argv, &temps, &args);
+	lectura_parametres(argc, argv, &args);
 	configuracio_software(&args, &s, &c);
 
 	/* Connexió UDP. */
-	connexio_UDP(&temps, args.debug, s, c);
+	connexio_UDP(args.debug, s, c);
 
 
 	exit(0);
@@ -62,6 +62,7 @@ int main(int argc, char **argv)
  */
 void actualitzar_hora(struct t *temps)
 {
+	temps->t = time(NULL);
 	temps->tm=localtime(&temps->t);
 	strftime(temps->hora, 15, "%H:%M:%S", temps->tm);
 }
@@ -104,10 +105,9 @@ void print_string(const char *fmt, va_list args)
  * -----------------
  * Imprimeix per pantalla que no s'ha pogut obrir l'arxiu de configuració i finalitza el programa.
  */
-void error_arxiu_configuracio(struct t *temps, char arxiu[])
+void error_arxiu_configuracio(char arxiu[])
 {
-	actualitzar_hora(temps);
-	printf("%s: ERROR =>  No es pot obrir l'arxiu de configuració: %s\n", temps->hora, arxiu);
+	print_with_time("ERROR =>  No es pot obrir l'arxiu de configuració: %s\n", arxiu);
 	exit(-1);
 }
 
@@ -116,7 +116,7 @@ void error_arxiu_configuracio(struct t *temps, char arxiu[])
  * -----------------
  * En cas que estigui en mode debug, printeja el text.
  */
-void print_if_debug(int debug, struct t *tempso, const char *fmt, ...)
+void print_if_debug(int debug, const char *fmt, ...)
 {
 	va_list	args;
 	struct t temps;
@@ -137,7 +137,7 @@ void print_if_debug(int debug, struct t *tempso, const char *fmt, ...)
  * Llegeix tots els paràmetres passats a l'hora d'executar el client i decidex quins arxius
  * s'han d'obrir i si hi ha mode debug.
  */
-void lectura_parametres(int argc, char** argv, struct t *temps, struct args *args)
+void lectura_parametres(int argc, char** argv, struct args *args)
 {
     int i;
     char arxiuSoft[NUM_CHARS_ARXIU];
@@ -154,30 +154,29 @@ void lectura_parametres(int argc, char** argv, struct t *temps, struct args *arg
 
 			/* S'activa el Mode DEBUG */
 			args->debug = 1;
-			actualitzar_hora(temps);
-			printf("%s: DEBUG => Mode DEBUG ON.\n", temps->hora);
+			print_with_time("DEBUG => Mode DEBUG ON.");
 		} else if(strcmp(argv[i], "-c") == 0){
 
 			/* Es canvia el nom de l'arxiu. */
 			if(argc <= i+1){
-				error_arxiu_configuracio(temps, "");
+				error_arxiu_configuracio("");
 			}
 			sprintf(arxiuSoft, "%s",argv[i+1]);
-			print_if_debug(args->debug, temps, "Arxiu de dades de software modificat: %s", arxiuSoft);
+			print_if_debug(args->debug, "Arxiu de dades de software modificat: %s", arxiuSoft);
 		} else if(strcmp(argv[i], "-f") == 0){
 			if(argc <= i+1){ 	
-				error_arxiu_configuracio(temps, "");
+				error_arxiu_configuracio("");
 			}
 			sprintf(arxiuEquip, "%s", argv[i + 1]);
-			print_if_debug(args->debug, temps, "Arxiu de configuració de l'equip modificat: %s", arxiuEquip);
+			print_if_debug(args->debug,"Arxiu de configuració de l'equip modificat: %s", arxiuEquip);
 		}
 	}
-	print_if_debug(args->debug,temps, "Llegits paràmetres línia de comandes.");
+	print_if_debug(args->debug, "Llegits paràmetres línia de comandes.");
 
-	args->fitxerSoft = obrir_arxius_config(arxiuSoft, temps);
-	print_if_debug(args->debug, temps, "Obert arxiu de configuració de software.");
-	args->fitxerEquip = obrir_arxius_config(arxiuEquip, temps);
-	print_if_debug(args->debug, temps, "Obert arxiu de configuració de l'equip.");
+	args->fitxerSoft = obrir_arxius_config(arxiuSoft);
+	print_if_debug(args->debug, "Obert arxiu de configuració de software.");
+	args->fitxerEquip = obrir_arxius_config(arxiuEquip);
+	print_if_debug(args->debug, "Obert arxiu de configuració de l'equip.");
 }
 
 /* 
@@ -185,13 +184,13 @@ void lectura_parametres(int argc, char** argv, struct t *temps, struct args *arg
  * -----------------
  * Intentem obrir l'arxiu de configuració i mirem si existeix. 
  */
-FILE *obrir_arxius_config(char arxiu[NUM_CHARS_ARXIU], struct t *temps)
+FILE *obrir_arxius_config(char arxiu[NUM_CHARS_ARXIU])
 {
 	FILE *fd;
 	fd = fopen(arxiu, "rt");
 	if(fd == NULL)
 	{
-		error_arxiu_configuracio(temps, arxiu);
+		error_arxiu_configuracio(arxiu);
 	}
 	return fd;
 }
@@ -217,8 +216,8 @@ void configuracio_software(struct args* args, struct server *s, struct client *c
 			s->serverPort=atoi(buf2);
 		}
 	}
-	print_if_debug(args->debug, NULL, "El client és:\n\t\tNom: %s\n\t\tMAC: %s", c->equip, c->mac);
-	print_if_debug(args->debug, NULL, "El servidor té:\n\t\tAdreça: %s\n\t\tPort: %i", s->server, s->serverPort);
+	print_if_debug(args->debug, "El client és:\n\t\tNom: %s\n\t\tMAC: %s", c->equip, c->mac);
+	print_if_debug(args->debug,"El servidor té:\n\t\tAdreça: %s\n\t\tPort: %i", s->server, s->serverPort); 
 }
 
 /*
@@ -227,7 +226,7 @@ void configuracio_software(struct args* args, struct server *s, struct client *c
  * Intenta obrir tots els arxius. En cas que no existeixin ho ha de notificar i marcar error.
  * En cas que existeixin i el mode DEBUG estigui activat, s'ha de notificar que s'ha obert. 
  */
-void connexio_UDP(struct t *temps, int debug, struct server s, struct client c)
+void connexio_UDP(int debug, struct server s, struct client c)
 {
 	struct sockaddr_in addr_serv;
 	struct paquet_udp p;
@@ -239,17 +238,15 @@ void connexio_UDP(struct t *temps, int debug, struct server s, struct client c)
 	fd = socket(AF_INET,SOCK_DGRAM, 0);
 	if(fd < 0)
 	{
-		actualitzar_hora(temps);
-		printf("%s: ERROR =>  No s'ha pogut crear socket.\n", temps->hora);
+		print_with_time("ERROR =>  No s'ha pogut crear socket.");
 		exit(-1);
 	}
-	print_if_debug(debug, temps, "Realitzat el socket UDP.");
+	print_if_debug(debug, "Realitzat el socket UDP.");
 
 	ent=gethostbyname(s.server);
 	if(!ent)
 	{
-		actualitzar_hora(temps);
-		printf("%s: ERROR => No s'ha pogut trobar el host del servidor.\n", temps->hora);
+		print_with_time("ERROR => No s'ha pogut trobar el host del servidor.");
 		exit(-1);
 	}
 
@@ -271,8 +268,7 @@ void connexio_UDP(struct t *temps, int debug, struct server s, struct client c)
 	a=sendto(fd,&p,sizeof(p),0,(struct sockaddr*)&addr_serv,sizeof(addr_serv));
     if(a<0)
     {
-		actualitzar_hora(temps);
-		printf("%s: ERROR => No s'ha pogut enviar paquet.\n", temps->hora);
+		print_with_time("ERROR => No s'ha pogut enviar paquet.");
 		exit(-1);
 	}
 }
