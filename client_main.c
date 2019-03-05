@@ -121,11 +121,11 @@ void print_if_debug(int debug, struct t *tempso, const char *fmt, ...)
 	va_list	args;
 	struct t temps;
 
-	actualitzar_hora(&temps);
-	printf("%s: ", temps.hora);
-	va_start(args,fmt);
 	if(debug == 1)
 	{
+	    actualitzar_hora(&temps);
+	    printf("%s: ", temps.hora);
+	    va_start(args,fmt);
 		print_string(fmt, args);
 	}
 	
