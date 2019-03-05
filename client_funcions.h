@@ -1,6 +1,10 @@
 #include <stdarg.h>
 #include "struct_f.h"
 
+#define NUM_CHARS_ARXIU 15
+#define NUM_CHARS_PRINT 50
+#define LENGTH_BUFF 20
+
 #ifndef FUNCIONS
 #define FUNCIONS
 
