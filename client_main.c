@@ -20,8 +20,8 @@ void error_arxiu_configuracio(struct t *temps, char arxiu[]);
 void print_if_debug(int debug, struct t *temps, const char *fmt, ...);
 void lectura_parametres(int argc, char** argv, struct t *temps, struct args *args);
 FILE *obrir_arxius_config(char arxiu[NUM_CHARS_ARXIU], struct t *temps);
-void configuracio(struct args *args, struct server *s, struct client *c);
-void connexio_UDP(struct t *temps, struct args *args, struct server s, struct client c);
+void configuracio_software(struct args *args, struct server *s, struct client *c);
+void connexio_UDP(struct t *temps, int debug, struct server s, struct client c);
 
 /*
  * Funció: main
@@ -44,11 +44,10 @@ int main(int argc, char **argv)
 
 	/* Lectura dels paràmetres i  opertura dels arxius */
 	lectura_parametres(argc, argv, &temps, &args);
-
-	configuracio(&args, &s, &c);
+	configuracio_software(&args, &s, &c);
 
 	/* Connexió UDP. */
-	connexio_UDP(&temps, &args, s, c);
+	connexio_UDP(&temps, args.debug, s, c);
 
 
 	exit(0);
@@ -168,7 +167,10 @@ void lectura_parametres(int argc, char** argv, struct t *temps, struct args *arg
 	print_if_debug(args->debug, temps, "Obert arxiu de configuració de l'equip.");
 }
 
-/* Intentem obrir l'arxiu de configuració i mirem si existeix. 
+/* 
+ * Funció: obrir_arxius_config
+ * -----------------
+ * Intentem obrir l'arxiu de configuració i mirem si existeix. 
  */
 FILE *obrir_arxius_config(char arxiu[NUM_CHARS_ARXIU], struct t *temps)
 {
@@ -181,11 +183,12 @@ FILE *obrir_arxius_config(char arxiu[NUM_CHARS_ARXIU], struct t *temps)
 	return fd;
 }
 /*
- * Funció: configuracio
+ * Funció: configuracio_software
+ *
  * ----------------- 
  * Mira el fitxer de configuració de software.
  */
-void configuracio(struct args *args, struct server *s, struct client *c)
+void configuracio_software(struct args* args, struct server *s, struct client *c)
 {
 	char buf[20];
 	char buf2[20];
@@ -211,7 +214,7 @@ void configuracio(struct args *args, struct server *s, struct client *c)
  * Intenta obrir tots els arxius. En cas que no existeixin ho ha de notificar i marcar error.
  * En cas que existeixin i el mode DEBUG estigui activat, s'ha de notificar que s'ha obert. 
  */
-void connexio_UDP(struct t *temps, struct args *args, struct server s, struct client c)
+void connexio_UDP(struct t *temps, int debug, struct server s, struct client c)
 {
 	struct sockaddr_in addr_serv;
 	struct paquet_udp p;
@@ -227,7 +230,7 @@ void connexio_UDP(struct t *temps, struct args *args, struct server s, struct cl
 		printf("%s: ERROR =>  No s'ha pogut crear socket.\n", temps->hora);
 		exit(-1);
 	}
-	print_if_debug(args->debug, temps, "Realitzat el socket UDP.");
+	print_if_debug(debug, temps, "Realitzat el socket UDP.");
 
 	ent=gethostbyname(s.server);
 	if(!ent)
