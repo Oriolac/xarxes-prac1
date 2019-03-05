@@ -16,11 +16,6 @@ struct t
 	char hora[15];
 };
 
-struct udpSock
-{
-    int fd;
-};
-
 struct server
 {
     char server[20];

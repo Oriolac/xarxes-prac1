@@ -20,6 +20,7 @@ void print_with_time(const char *fmt, ...);
 void print_string(const char *fmt, va_list args);
 void error_arxiu_configuracio( char arxiu[]);
 void print_if_debug(int debug, const char *fmt, ...);
+void canvi_nom_arxiu(int argc, char **argv, int i, char *arxiu);
 void lectura_parametres(int argc, char** argv, struct args *args);
 FILE *obrir_arxius_config(char arxiu[NUM_CHARS_ARXIU]);
 void configuracio_software(struct args *args, struct server *s, struct client *c);
@@ -36,13 +37,9 @@ int main(int argc, char **argv)
 {
 	/* Declaració de les variables */
 	struct args args;
-    struct t temps;
 	struct server s;
 	struct client c;
 
-
-	/* Inicialitzar la hora per evitar el warning */
-	temps.t=time(NULL);
 
 	/* Lectura dels paràmetres i  opertura dels arxius */
 	lectura_parametres(argc, argv, &args);
@@ -124,11 +121,20 @@ void print_if_debug(int debug, const char *fmt, ...)
 	if(debug == 1)
 	{
 	    actualitzar_hora(&temps);
-	    printf("%s: ", temps.hora);
+	    printf("%s: DEBUG => ", temps.hora);
 	    va_start(args,fmt);
 		print_string(fmt, args);
 	}
 	
+}
+
+void canvi_nom_arxiu(int argc, char **argv, int i, char *arxiu)
+{
+	if(argc <= i+1)
+	{
+		error_arxiu_configuracio("");
+	}
+	sprintf(arxiu, "%s", argv[i+1]);
 }
 
 /*
@@ -158,16 +164,10 @@ void lectura_parametres(int argc, char** argv, struct args *args)
 		} else if(strcmp(argv[i], "-c") == 0){
 
 			/* Es canvia el nom de l'arxiu. */
-			if(argc <= i+1){
-				error_arxiu_configuracio("");
-			}
-			sprintf(arxiuSoft, "%s",argv[i+1]);
+			canvi_nom_arxiu(argc,argv, i, arxiuSoft);
 			print_if_debug(args->debug, "Arxiu de dades de software modificat: %s", arxiuSoft);
 		} else if(strcmp(argv[i], "-f") == 0){
-			if(argc <= i+1){ 	
-				error_arxiu_configuracio("");
-			}
-			sprintf(arxiuEquip, "%s", argv[i + 1]);
+			canvi_nom_arxiu(argc, argv, i, arxiuEquip);
 			print_if_debug(args->debug,"Arxiu de configuració de l'equip modificat: %s", arxiuEquip);
 		}
 	}
