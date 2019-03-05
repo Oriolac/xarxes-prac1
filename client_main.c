@@ -16,6 +16,8 @@
 #define LENGTH_BUFF 20
 
 void actualitzar_hora(struct t *temps);
+void print_with_time(const char *fmt, ...);
+void print_string(const char *fmt, va_list args);
 void error_arxiu_configuracio(struct t *temps, char arxiu[]);
 void print_if_debug(int debug, struct t *temps, const char *fmt, ...);
 void lectura_parametres(int argc, char** argv, struct t *temps, struct args *args);
@@ -64,6 +66,39 @@ void actualitzar_hora(struct t *temps)
 	strftime(temps->hora, 15, "%H:%M:%S", temps->tm);
 }
 
+void print_with_time(const char *fmt, ...){
+	struct t temps;
+	va_list args;
+
+	va_start(args, fmt);
+	actualitzar_hora(&temps);
+	printf("%s: ", temps.hora);
+	print_string(fmt, args);
+}
+
+void print_string(const char *fmt, va_list args)
+{
+	char *string;
+	int i;
+	while( *fmt != '\0')
+	{
+		if(*fmt == '%' && *(fmt+1) == 's')
+		{
+			++fmt;
+			string = va_arg(args,char*);
+			printf("%s", string);
+		} else if(*fmt == '%' && *(fmt+1)== 'i')
+		{
+			++fmt;
+			i = va_arg(args,int);
+			printf("%i", i);
+		} else {
+			printf("%c", *fmt);
+		}
+		++fmt;
+	}
+	printf("\n");
+}
 /*
  * Funció: error_arxiu_configuracio
  * -----------------
@@ -81,39 +116,17 @@ void error_arxiu_configuracio(struct t *temps, char arxiu[])
  * -----------------
  * En cas que estigui en mode debug, printeja el text.
  */
-void print_if_debug(int debug, struct t *temps, const char *fmt, ...)
+void print_if_debug(int debug, struct t *tempso, const char *fmt, ...)
 {
-	char *string;
-	int i;
 	va_list	args;
+	struct t temps;
+
+	actualitzar_hora(&temps);
+	printf("%s: ", temps.hora);
 	va_start(args,fmt);
 	if(debug == 1)
 	{
-		if(temps == NULL){
-			struct t temps2;
-			temps2.t=time(NULL);
-			temps = &temps2;
-		}
-		actualitzar_hora(temps);
-		printf("%s: DEBUG => ",temps->hora);
-		while( *fmt != '\0')
-		{
-			if(*fmt == '%' && *(fmt+1) == 's')
-			{
-				++fmt;
-				string = va_arg(args,char*);
-				printf("%s", string);
-			} else if(*fmt == '%' && *(fmt+1)== 'i')
-			{
-				++fmt;
-				i = va_arg(args,int);
-				printf("%i", i);
-			} else {
-				printf("%c", *fmt);
-			}
-			++fmt;
-		}
-		printf("\n");
+		print_string(fmt, args);
 	}
 	
 }
