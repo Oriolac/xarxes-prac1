@@ -34,3 +34,13 @@ struct paquet_udp
     char random_number[7];
     char dades[50];
 };
+
+struct temporitzadors
+{
+    int n;
+    int t;
+    int m;
+    int p;
+    int s;
+    int q;
+};

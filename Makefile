@@ -1,6 +1,8 @@
 CFLAGS = -ansi -pedantic -Wall
 
-# Regles
+#Regles
+all: programa
+
 programa: client_main.o client_prints.o client_parametres.o client_udp.o
 	gcc -o client client_main.o client_prints.o client_parametres.o client_udp.o
 	@rm -f client_parametres.o
