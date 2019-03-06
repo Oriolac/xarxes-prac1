@@ -72,8 +72,6 @@ void connexio_UDP(int debug, struct server s, struct client c)
 void recorregut_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr_in addr_serv)
 {
 	struct temporitzadors tors;
-	int m = M;
-	int s = S;
 	tors.numIntents = 1;
 	tors.q = Q;
 
@@ -127,6 +125,7 @@ void socket_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr_in 
 
 	print_if_debug(debug, "Enviat: bytes=%i, comanda=%s, nom=%s, mac=%s, alea=%s, dades=%s", sizeof(paquet),tipus_pdu(paquet.type), paquet.equip, paquet.mac, paquet.random_number, paquet.dades);
 	print_with_time("MSG. => Client passa a l'estat: WAIT_REG");
+
 	read_feedback_register(debug, fd, t);
 
 }
@@ -150,6 +149,8 @@ struct paquet_udp read_feedback_register(int debug, int fd, int t)
 	if( a < 0 )
 	{
 		print_with_time("ERROR => select.\n");
+		paquet.type =4;
+		return paquet;
 	} else if(FD_ISSET(fd, &readfds))
 	{
 		a=recvfrom(fd, &paquet, sizeof(paquet),0, (struct sockaddr * )0, (socklen_t *)0);
@@ -160,7 +161,8 @@ struct paquet_udp read_feedback_register(int debug, int fd, int t)
 		}
 		print_if_debug(debug,"S'ha rebut el paquet: tipus=%i, nom=%s, mac=%s, alea%s, dades=%s", tipus_pdu(paquet.type), paquet.equip, paquet.mac, paquet.random_number, paquet.dades);
 		return paquet;
-	} else {
+	} else 
+	{
 		paquet.type = 4;
 		return paquet;
 	}
