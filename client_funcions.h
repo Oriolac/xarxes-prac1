@@ -29,6 +29,6 @@ void configuracio_software(struct args *args, struct server *s, struct client *c
 void connexio_UDP(int debug, struct server s, struct client c);
 void recorregut_udp(int debug, int fd, struct paquet_udp p, struct sockaddr_in addr_serv);
 void socket_udp(int debug, int fd, struct paquet_udp p, struct sockaddr_in addr_serv, int t);
-void read_feedback_register(int debug, int fd, struct paquet_udp paquet, int t);
+struct paquet_udp read_feedback_register(int debug, int fd, int t);
 
 #endif

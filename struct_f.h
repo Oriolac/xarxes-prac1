@@ -39,8 +39,7 @@ struct temporitzadors
 {
     int n;
     int t;
-    int m;
     int p;
-    int s;
     int q;
+    int numIntents;
 };

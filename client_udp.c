@@ -71,46 +71,45 @@ void connexio_UDP(int debug, struct server s, struct client c)
 
 void recorregut_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr_in addr_serv)
 {
-	int n;
-	int t;
-	int p;
+	struct temporitzadors tors;
 	int m = M;
 	int s = S;
-	int numIntents = 1;
-	int q = Q;
+	tors.numIntents = 1;
+	tors.q = Q;
 
 	print_if_debug(debug, "Inici bucle de servei equip: %s", paquet.equip);
 	print_with_time("MSG. => Equip passa a l'estat DISCONNECTED");
-	while(q > 0)
+
+	while(tors.q > 0)
 	{
-		n = N;
-		t = T;
-		p = P;
-		while(n > 0)
+		tors.n = N;
+		tors.t = T;
+		tors.p = P;
+		while(tors.n > 0)
 		{
-			print_if_debug(debug, "Registre equip. Intent: %i", numIntents);
-			socket_udp(debug, fd, paquet, addr_serv, t);
-			n--;
-			numIntents++;
+			print_if_debug(debug, "Registre equip. Intent: %i", tors.numIntents);
+			socket_udp(debug, fd, paquet, addr_serv, tors.t);
+			tors.numIntents++;
+			tors.n--;
 		}
-		while( m*T > t)
+		while( M*T > tors.t)
 		{
-			t += T;
-			print_if_debug(debug, "Registre equip. Intent %i.", numIntents, t);
-			socket_udp(debug, fd, paquet, addr_serv, t);
-			numIntents++;
+			tors.t += T;
+			print_if_debug(debug, "Registre equip. Intent %i.", tors.numIntents);
+			socket_udp(debug, fd, paquet, addr_serv, tors.t);
+			tors.numIntents++;
 		}
-		t = m * T;
-		while(p > 0)
+		tors.t = M * T;
+		while(tors.p > 0)
 		{
-			print_if_debug(debug, "Registre equip. Intent %i", numIntents);
-			socket_udp(debug, fd, paquet, addr_serv, t);
-			p--;
-			numIntents++;
+			print_if_debug(debug, "Registre equip. Intent %i", tors.numIntents);
+			socket_udp(debug, fd, paquet, addr_serv, tors.t);
+			tors.numIntents++;
+			tors.p--;
 		}
-		print_if_debug(debug,"S'espera %i segons fins nou procés de registre", s);
-		sleep(s);
-		q--;
+		print_if_debug(debug,"S'espera %i segons fins nou procés de registre", S);
+		sleep(S);
+		tors.q--;
 	}
 	print_if_debug(debug,"No s'ha rebut acceptació. Es seguiran enviant paquets però incrementant els segons.");
 }
@@ -128,29 +127,31 @@ void socket_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr_in 
 
 	print_if_debug(debug, "Enviat: bytes=%i, comanda=%s, nom=%s, mac=%s, alea=%s, dades=%s", sizeof(paquet),tipus_pdu(paquet.type), paquet.equip, paquet.mac, paquet.random_number, paquet.dades);
 	print_with_time("MSG. => Client passa a l'estat: WAIT_REG");
-	read_feedback_register(debug, fd, paquet, t);
+	read_feedback_register(debug, fd, t);
 
 }
 
-void read_feedback_register(int debug, int fd, struct paquet_udp paquet, int t)
+struct paquet_udp read_feedback_register(int debug, int fd, int t)
 {
 	int a;
 	fd_set readfds;
-
+	struct paquet_udp paquet;
 	struct timeval timev;
+
 	timev.tv_sec = t;
 	timev.tv_usec = 0;
 
 	FD_ZERO(&readfds);
 	FD_SET(fd, &readfds);
 
+	memset(&paquet, 0, sizeof(paquet));
+	
 	a = select(fd+1, &readfds, NULL,NULL, &timev);
 	if( a < 0 )
 	{
 		print_with_time("ERROR => select.\n");
 	} else if(FD_ISSET(fd, &readfds))
 	{
-		memset(&paquet, 0, sizeof(paquet));
 		a=recvfrom(fd, &paquet, sizeof(paquet),0, (struct sockaddr * )0, (socklen_t *)0);
 		if( a < 0)
 		{
@@ -158,6 +159,9 @@ void read_feedback_register(int debug, int fd, struct paquet_udp paquet, int t)
 			exit(-1);
 		}
 		print_if_debug(debug,"S'ha rebut el paquet: tipus=%i, nom=%s, mac=%s, alea%s, dades=%s", tipus_pdu(paquet.type), paquet.equip, paquet.mac, paquet.random_number, paquet.dades);
-		sleep(t);
+		return paquet;
+	} else {
+		paquet.type = 4;
+		return paquet;
 	}
 }
