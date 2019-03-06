@@ -28,7 +28,10 @@ void configuracio_software(struct args *args, struct server *s, struct client *c
 /* client_udp.c         */
 void connexio_UDP(int debug, struct server s, struct client c);
 void recorregut_udp(int debug, int fd, struct paquet_udp p, struct sockaddr_in addr_serv);
-void socket_udp(int debug, int fd, struct paquet_udp p, struct sockaddr_in addr_serv, int t);
-struct paquet_udp read_feedback_register(int debug, int fd, int t);
+void socket_udp(int debug, int fd, struct paquet_udp p, struct sockaddr_in addr_serv, int t, int *nack);
+struct paquet_udp read_feedback(int debug, int fd, int t);
+void sendto_udp(int fd, struct paquet_udp paquet,struct sockaddr_in addr_serv);
+void comunicacio_periodica(int debug, int fd, struct paquet_udp paquet, struct sockaddr_in addr_serv);
+int comprovacio_alive_ack(int debug,struct paquet_udp paquet);
 
 #endif

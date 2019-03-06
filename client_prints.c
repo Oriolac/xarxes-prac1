@@ -69,7 +69,7 @@ void print_if_debug(int debug, const char *fmt, ...)
 	va_list	args;
 	struct t temps;
 
-	if(debug == 1)
+	if(debug)
 	{
 	    actualitzar_hora(&temps);
 	    printf("%s: DEBUG => ", temps.hora);
