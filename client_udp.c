@@ -21,6 +21,7 @@
 #define S 5
 #define Q 3
 #define R 3
+#define U 3
 
 /*
  * Funció: connexio_UDP
@@ -34,7 +35,6 @@ void connexio_UDP(int debug, struct server s, struct client c)
 	struct paquet_udp paquet;
 	int fd;
 	struct hostent *ent;
-	char dades[50];
 	
 	fd = socket(AF_INET,SOCK_DGRAM, 0);
 	if(fd < 0)
@@ -57,20 +57,12 @@ void connexio_UDP(int debug, struct server s, struct client c)
 	addr_serv.sin_port=htons(s.serverPort);
     print_if_debug(debug, "Emplenada l'adreça del servidor i el seu port.");
 
-	/* Paquet */
-	memset(&paquet, 0, sizeof(paquet));
-	paquet.type=0;
-	strcpy(paquet.equip, c.equip);
-	strcpy(paquet.mac, c.mac);
-	strcpy(paquet.random_number, "000000");
-	memset(&dades, 0, sizeof(dades));
-	strcpy(paquet.dades, dades);
-    print_if_debug(debug, "Emplenat el paquet UDP del client.");
+	paquet = escriure_paquet(debug,"000000",c,0);
 	
-    recorregut_udp(debug, fd, paquet, addr_serv);
+    recorregut_udp(debug, fd, paquet, addr_serv, c);
 }
 
-void recorregut_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr_in addr_serv)
+void recorregut_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr_in addr_serv, struct client c)
 {
 	struct temporitzadors tors;
 	int nack = 0;
@@ -89,7 +81,7 @@ void recorregut_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr
 		while(tors.n > 0)
 		{
 			print_if_debug(debug, "Registre equip. Intent: %i", tors.numIntents);
-			socket_udp(debug, fd, paquet, addr_serv, tors.t, &nack);
+			socket_udp(debug, fd, paquet, addr_serv, tors.t, &nack, c);
 			tors.numIntents++;
 			tors.n--;
 		}
@@ -97,14 +89,14 @@ void recorregut_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr
 		{
 			tors.t += T;
 			print_if_debug(debug, "Registre equip. Intent %i.", tors.numIntents);
-			socket_udp(debug, fd, paquet, addr_serv, tors.t, &nack);
+			socket_udp(debug, fd, paquet, addr_serv, tors.t, &nack,c);
 			tors.numIntents++;
 		}
 		tors.t = M * T;
 		while(!nack && tors.p > 0)
 		{
 			print_if_debug(debug, "Registre equip. Intent %i", tors.numIntents);
-			socket_udp(debug, fd, paquet, addr_serv, tors.t, &nack);
+			socket_udp(debug, fd, paquet, addr_serv, tors.t, &nack,c);
 			tors.numIntents++;
 			tors.p--;
 		}
@@ -115,7 +107,7 @@ void recorregut_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr
 	print_if_debug(debug,"No s'ha rebut acceptació. Es seguiran enviant paquets però incrementant els segons.");
 }
 
-void socket_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr_in addr_serv, int t, int *nack)
+void socket_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr_in addr_serv, int t, int *nack, struct client c)
 {
 	sendto_udp(fd, paquet, addr_serv);
 
@@ -133,10 +125,13 @@ void socket_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr_in 
 		case 2:
 			*nack = 1;
 			print_if_debug(debug, "Rebut paquet REGISTER_NACK");
+			break;
 		case 1:
 			print_if_debug(debug, "Rebut paquet REGISTER_ACK");
 			print_with_time("MSG.  => Equip passa a l'estat REGISTERED");
-			comunicacio_periodica(debug, fd,paquet,addr_serv);
+			print_with_time("INFO  => Acceptada subscripció amb servidor: (nom:%s, mac:%s, alea:%s, port tcp:%s)",paquet.equip, paquet.mac, paquet.random_number, paquet.dades);
+			comunicacio_periodica(debug, fd,paquet,addr_serv,c);
+			break;
 		default:
 			break;
 	}
@@ -170,7 +165,6 @@ struct paquet_udp read_feedback(int debug, int fd, int t)
 	FD_ZERO(&readfds);
 	FD_SET(fd, &readfds);
 
-	
 	a = select(fd+1, &readfds, NULL,NULL, &timev);
 	if( a < 0 )
 	{
@@ -192,34 +186,82 @@ struct paquet_udp read_feedback(int debug, int fd, int t)
 	return paquet;
 }
 
-void comunicacio_periodica(int debug, int fd, struct paquet_udp paquet, struct sockaddr_in addr_serv)
+void comunicacio_periodica(int debug, int fd, struct paquet_udp paquet, struct sockaddr_in addr_serv, struct client c)
 {
-	int nack;
+	int stop;
+	int primer_alive;
 	int count_no_alive_ack;
+	struct paquet_udp paquet_sendto;
 	struct paquet_udp paquet_recv;
 
-	nack = 0;
+	print_if_debug(debug, "Començant la comunicació periòdica.");
+
+	stop = 0;
 	count_no_alive_ack = 0;
-	while(!nack)
+	primer_alive = 0;
+
+	while(!stop)
 	{
-		sendto_udp(fd, paquet, addr_serv);
+		paquet_sendto = escriure_paquet(debug, paquet.random_number, c,16);
+		sendto_udp(fd, paquet_sendto, addr_serv);
+		print_if_debug(debug, "Enviat: bytes=%i, comanda=%s, nom=%s, mac=%s, alea=%s, dades=%s", sizeof(paquet_sendto),tipus_pdu(paquet_sendto.type), paquet_sendto.equip, paquet_sendto.mac, paquet_sendto.random_number, paquet_sendto.dades);
+		sleep(2);
 		paquet_recv = read_feedback(debug, fd, R);
 		switch (paquet_recv.type)
 		{
 			case 0:
 				count_no_alive_ack++;
-			case 11:
-				count_no_alive_ack += comprovacio_alive_ack(debug, paquet_recv);
-			case 13:
+				stop=control_stop(count_no_alive_ack);
+				break;
+			case 17:
+				count_no_alive_ack = comprovacio_alive_ack(debug, paquet_recv, paquet_sendto, count_no_alive_ack);
+				stop=control_stop(count_no_alive_ack);
+				if(primer_alive == 0)
+				{
+					print_with_time("MSG.  => L'equip passa a l'estat ALIVE.");
+					primer_alive = 1;
+				}
+				break;
+			case 19:
 				print_with_time("MSG.  => Equip passa a l'estat DISCONNECTED");
 				exit(-1);
+				break;
 			default:
-				nack=1;
+				print_with_time("ERROR => Rebut paquet no disponible. Intentem tornar a fer el registre.");
+				stop=1;
+				break;
 		}
 	}
+	print_if_debug(debug, "Marxem de la comunicació periòdica");
 }
 
-int comprovacio_alive_ack(int debug,struct paquet_udp paquet)
+int control_stop(int count_no_alive_ack)
 {
+	if(U <= count_no_alive_ack)
+	{
+		print_with_time("ERROR => No s'han rebut %i ALIVE_ACK", U, count_no_alive_ack);
+		return 1;
+	}
 	return 0;
+}
+
+int comprovacio_alive_ack(int debug,struct paquet_udp paquet1, struct paquet_udp paquet2, int count)
+{
+	if(strcmp(paquet1.random_number, paquet2.random_number) != 0)
+	{
+		return count+1;
+	}
+	return count;
+}
+
+struct paquet_udp escriure_paquet(int debug, char *random, struct client c, int i)
+{
+	struct paquet_udp p;
+	memset(&p,0, sizeof(p));
+	p.type= (unsigned char) i;
+	strcpy(p.equip, c.equip);
+	strcpy(p.mac, c.mac);
+	strcpy(p.random_number, random);
+	strcpy(p.dades, "");
+	return p;
 }

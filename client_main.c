@@ -29,13 +29,13 @@ char* tipus_pdu(unsigned char c)
 			return "REGISTER_REJ";
 		case 9:
 			return "ERROR";
-		case 10:
+		case 16:
 			return "ALIVE_INF";
-		case 11:
+		case 17:
 			return "ALIVE_ACK";
-		case 12:
+		case 18:
 			return "ALIVE_NACK";
-		case 13:
+		case 19:
 			return "ALIVE_REJ";
 		default:
 			return "?";
