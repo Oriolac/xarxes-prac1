@@ -2,5 +2,6 @@
     "files.associations": {
         "stdio.h": "c",
         "client_funcions.h": "c"
-    }
+    },
+    "python.pythonPath": "/usr/bin/python"
 }

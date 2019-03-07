@@ -22,12 +22,12 @@ void canvi_nom_arxiu(int argc, char **argv, int i, char *arxiu)
 void lectura_parametres(int argc, char** argv, struct args *args)
 {
     int i;
-    char arxiuSoft[NUM_CHARS_ARXIU];
-    char arxiuEquip[NUM_CHARS_ARXIU];
+    char arxiu_soft[NUM_CHARS_ARXIU];
+    char arxiu_equip[NUM_CHARS_ARXIU];
 
 	/* Guardem tot allò per defecte. */
-	sprintf(arxiuSoft, "client.cfg");
-	sprintf(arxiuEquip, "boot.cfg");
+	sprintf(arxiu_soft, "client.cfg");
+	sprintf(arxiu_equip, "boot.cfg");
     args->debug = 0;
 
 	/* Mira si existeixen paràmetres com el -d o -c */
@@ -40,18 +40,18 @@ void lectura_parametres(int argc, char** argv, struct args *args)
 		} else if(!strcmp(argv[i], "-c")){
 
 			/* Es canvia el nom de l'arxiu. */
-			canvi_nom_arxiu(argc,argv, i, arxiuSoft);
-			print_if_debug(args->debug, "Arxiu de dades de software modificat: %s", arxiuSoft);
+			canvi_nom_arxiu(argc,argv, i, arxiu_soft);
+			print_if_debug(args->debug, "Arxiu de dades de software modificat: %s", arxiu_soft);
 		} else if(!strcmp(argv[i], "-f")){
-			canvi_nom_arxiu(argc, argv, i, arxiuEquip);
-			print_if_debug(args->debug,"Arxiu de configuració de l'equip modificat: %s", arxiuEquip);
+			canvi_nom_arxiu(argc, argv, i, arxiu_equip);
+			print_if_debug(args->debug,"Arxiu de configuració de l'equip modificat: %s", arxiu_equip);
 		}
 	}
 	print_if_debug(args->debug, "Llegits paràmetres línia de comandes.");
 
-	args->fitxerSoft = obrir_arxius_config(arxiuSoft);
+	args->fitxerSoft = obrir_arxius_config(arxiu_soft);
 	print_if_debug(args->debug, "Obert arxiu de configuració de software.");
-	args->fitxerEquip = obrir_arxius_config(arxiuEquip);
+	args->fitxerEquip = obrir_arxius_config(arxiu_equip);
 	print_if_debug(args->debug, "Obert arxiu de configuració de l'equip.");
 }
 
