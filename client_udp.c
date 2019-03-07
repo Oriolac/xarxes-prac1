@@ -34,7 +34,6 @@ void connexio_UDP(int debug, struct server s, struct client c)
 	struct sockaddr_in addr_serv;
 	struct paquet_udp paquet;
 	int fd;
-	struct hostent *ent;
 	
 	fd = socket(AF_INET,SOCK_DGRAM, 0);
 	if(fd < 0)
@@ -44,6 +43,18 @@ void connexio_UDP(int debug, struct server s, struct client c)
 	}
 	print_if_debug(debug, "Realitzat el socket UDP.");
 
+	addr_serv = addr_servidor(s);
+    print_if_debug(debug, "Emplenada l'adreça del servidor i el seu port.");
+
+	paquet = escriure_paquet(0, c,"000000");
+	
+    recorregut_udp(debug, fd, paquet, addr_serv, c);
+}
+
+struct sockaddr_in addr_servidor(struct server s)
+{
+	struct hostent *ent;
+	struct sockaddr_in addr_serv;
 	ent=gethostbyname(s.server);
 	if(!ent)
 	{
@@ -55,11 +66,8 @@ void connexio_UDP(int debug, struct server s, struct client c)
 	addr_serv.sin_family=AF_INET;
 	addr_serv.sin_addr.s_addr=((struct in_addr *) ent->h_addr_list[0])->s_addr;
 	addr_serv.sin_port=htons(s.serverPort);
-    print_if_debug(debug, "Emplenada l'adreça del servidor i el seu port.");
 
-	paquet = escriure_paquet(debug,"000000",c,0);
-	
-    recorregut_udp(debug, fd, paquet, addr_serv, c);
+	return addr_serv;
 }
 
 void recorregut_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr_in addr_serv, struct client c)
@@ -202,7 +210,7 @@ void comunicacio_periodica(int debug, int fd, struct paquet_udp paquet, struct s
 
 	while(!stop)
 	{
-		paquet_sendto = escriure_paquet(debug, paquet.random_number, c,16);
+		paquet_sendto = escriure_paquet(16, c, paquet.random_number);
 		sendto_udp(fd, paquet_sendto, addr_serv);
 		print_if_debug(debug, "Enviat: bytes=%i, comanda=%s, nom=%s, mac=%s, alea=%s, dades=%s", sizeof(paquet_sendto),tipus_pdu(paquet_sendto.type), paquet_sendto.equip, paquet_sendto.mac, paquet_sendto.random_number, paquet_sendto.dades);
 		sleep(2);
@@ -214,7 +222,7 @@ void comunicacio_periodica(int debug, int fd, struct paquet_udp paquet, struct s
 				stop=control_stop(count_no_alive_ack);
 				break;
 			case 17:
-				if(strcmp(paquet_recv.random_number, paquet_sendto.random_number) == 0)
+				if(!strcmp(paquet_recv.random_number, paquet_sendto.random_number))
 				{
 					count_no_alive_ack = 0;
 					if(!primer_alive)
@@ -259,14 +267,14 @@ int comprovacio_alive_ack(int debug,struct paquet_udp paquet1, struct paquet_udp
 	return count;
 }
 
-struct paquet_udp escriure_paquet(int debug, char *random, struct client c, int i)
+struct paquet_udp escriure_paquet(int type ,struct client c, char * random)
 {
 	struct paquet_udp p;
 	memset(&p,0, sizeof(p));
-	p.type= (unsigned char) i;
+	p.type= (unsigned char) type;
 	strcpy(p.equip, c.equip);
 	strcpy(p.mac, c.mac);
 	strcpy(p.random_number, random);
-	strcpy(p.dades, "");
+	strcpy(p.dades, "\0");
 	return p;
 }

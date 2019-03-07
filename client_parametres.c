@@ -32,17 +32,17 @@ void lectura_parametres(int argc, char** argv, struct args *args)
 
 	/* Mira si existeixen paràmetres com el -d o -c */
 	for(i = 1; i < argc; i++){
-		if(strcmp(argv[i], "-d") == 0){
+		if(!strcmp(argv[i], "-d")){
 
 			/* S'activa el Mode DEBUG */
 			args->debug = 1;
 			print_with_time("DEBUG => Mode DEBUG ON.");
-		} else if(strcmp(argv[i], "-c") == 0){
+		} else if(!strcmp(argv[i], "-c")){
 
 			/* Es canvia el nom de l'arxiu. */
 			canvi_nom_arxiu(argc,argv, i, arxiuSoft);
 			print_if_debug(args->debug, "Arxiu de dades de software modificat: %s", arxiuSoft);
-		} else if(strcmp(argv[i], "-f") == 0){
+		} else if(!strcmp(argv[i], "-f")){
 			canvi_nom_arxiu(argc, argv, i, arxiuEquip);
 			print_if_debug(args->debug,"Arxiu de configuració de l'equip modificat: %s", arxiuEquip);
 		}
@@ -82,13 +82,13 @@ void configuracio_software(struct args* args, struct server *s, struct client *c
 	char buf2[20];
 
 	while(fscanf(args->fitxerSoft,"%s %s", buf, buf2) != EOF){
-		if(strcmp(buf, "Nom") == 0){
+		if(!strcmp(buf, "Nom")){
 			strcpy(c->equip,buf2);
-		} else if(strcmp(buf, "MAC") == 0){
+		} else if(!strcmp(buf, "MAC")){
 			strcpy(c->mac,buf2);
-		} else if(strcmp(buf, "Server") == 0){
+		} else if(!strcmp(buf, "Server")){
 			strcpy(s->server,buf2);
-		} else if(strcmp(buf, "Server-port") == 0){
+		} else if(!strcmp(buf, "Server-port")){
 			s->serverPort=atoi(buf2);
 		}
 	}

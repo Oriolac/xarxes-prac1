@@ -27,6 +27,7 @@ void configuracio_software(struct args *args, struct server *s, struct client *c
 
 /* client_udp.c         */
 void connexio_UDP(int debug, struct server s, struct client c);
+struct sockaddr_in addr_servidor(struct server s);
 void recorregut_udp(int debug, int fd, struct paquet_udp p, struct sockaddr_in addr_serv, struct client c);
 void socket_udp(int debug, int fd, struct paquet_udp p, struct sockaddr_in addr_serv, int t, int *nack, struct client c);
 struct paquet_udp read_feedback(int debug, int fd, int t);
@@ -34,6 +35,6 @@ void sendto_udp(int fd, struct paquet_udp paquet,struct sockaddr_in addr_serv);
 void comunicacio_periodica(int debug, int fd, struct paquet_udp paquet, struct sockaddr_in addr_serv, struct client c);
 int comprovacio_alive_ack(int debug,struct paquet_udp paquet1,struct paquet_udp paquet2, int count);
 int control_stop(int count_no_alive_ack);
-struct paquet_udp escriure_paquet(int debug,char * random, struct client c, int i);
+struct paquet_udp escriure_paquet(int type ,struct client c, char * random);
 
 #endif

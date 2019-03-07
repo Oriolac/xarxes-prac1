@@ -31,11 +31,11 @@ char* tipus_pdu(unsigned char c)
 			return "ERROR";
 		case 16:
 			return "ALIVE_INF";
-		case 17:
+		case 16 + 1:
 			return "ALIVE_ACK";
-		case 18:
+		case 16 + 2:
 			return "ALIVE_NACK";
-		case 19:
+		case 16 + 3:
 			return "ALIVE_REJ";
 		default:
 			return "?";
