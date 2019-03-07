@@ -214,12 +214,17 @@ void comunicacio_periodica(int debug, int fd, struct paquet_udp paquet, struct s
 				stop=control_stop(count_no_alive_ack);
 				break;
 			case 17:
-				count_no_alive_ack = comprovacio_alive_ack(debug, paquet_recv, paquet_sendto, count_no_alive_ack);
-				stop=control_stop(count_no_alive_ack);
-				if(primer_alive == 0)
+				if(strcmp(paquet_recv.random_number, paquet_sendto.random_number) == 0)
 				{
-					print_with_time("MSG.  => L'equip passa a l'estat ALIVE.");
-					primer_alive = 1;
+					count_no_alive_ack = 0;
+					if(!primer_alive)
+					{
+						print_with_time("MSG.  => L'equip passa a l'estat ALIVE.");
+						primer_alive = 1;
+					}
+				} else {
+					count_no_alive_ack++;
+					stop = control_stop(count_no_alive_ack);
 				}
 				break;
 			case 19:
