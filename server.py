@@ -5,17 +5,15 @@ Servidor
 
 import sys
 import time
-import tokenize
-
 
 def print_if_debug(debug, cadena):
     """print_if_debug"""
     if debug:
-        print time.strftime("%H:%M:%S DEBUG => " + cadena)
+        print(time.strftime("%H:%M:%S DEBUG => " + cadena))
 
 def print_if_error(cadena):
     """ print_if_debug """
-    print time.strftime("%H:%M:%S ERROR => " + cadena)
+    print(time.strftime("%H:%M:%S ERROR => " + cadena))
 
 def lectura_parametres():
     """lectura_parametres"""
@@ -42,7 +40,7 @@ def lectura_parametres():
             print_if_debug(debug, "Arxiu d'equips autoritzats modificat: " + arg)
             trobat_conf_equips = False
     if trobat_conf_equips or trobat_conf_server:
-        print "No s'han pogut obrir els arxius modificats"
+        print("No s'han pogut obrir els arxius modificats")
         sys.exit()
     return (debug, obrir_arxius(nom_arxius))
 
@@ -58,10 +56,37 @@ def obrir_arxius(nom_arxius):
 
 def agafar_dades_servidor(fitxer):
     """ agafar_dades_servidor """
+    dades = {}
     lines = fitxer.readlines()
     for line in lines:
-        tokenize.tokenize(line)
-        
+        line = line.split()
+        for word in line:
+            if word in ('Nom', 'MAC', 'UDP-port', 'TCP-port'):
+                dades[word] = line[1]
+    return dades
+
+def agafar_dades_equips(fitxer):
+    """ agafar_dades_equips """
+    llistat_dades = []
+    lines = fitxer.readlines()
+    for line in lines:
+        line = line.split()
+        try:
+            llistat_dades.append(dades_equip(line))
+        except IndexError:
+            pass
+    return llistat_dades
+
+
+def dades_equip(line):
+    """ fsjadiofas """
+    dades = {}
+    dades['nom'] = line[0]
+    dades['mac'] = line[1]
+    return dades
+
 if __name__ == '__main__':
     DEBUG, ARXIUS = lectura_parametres()
-    agafar_dades_servidor(ARXIUS['servidor'])
+    DADES = agafar_dades_servidor(ARXIUS['servidor'])
+    print_if_debug(DEBUG, "Parametres de configuracio llegits.")
+    EQUIPS = agafar_dades_equips(ARXIUS['equips'])
