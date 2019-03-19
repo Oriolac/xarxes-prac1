@@ -5,6 +5,8 @@ Servidor
 
 import sys
 import time
+import os
+import socket
 
 def print_if_debug(debug, cadena):
     """print_if_debug"""
@@ -71,22 +73,37 @@ def agafar_dades_equips(fitxer):
     lines = fitxer.readlines()
     for line in lines:
         line = line.split()
-        try:
+        if len(line) == 2:
             llistat_dades.append(dades_equip(line))
-        except IndexError:
-            pass
     return llistat_dades
 
 
 def dades_equip(line):
     """ fsjadiofas """
-    dades = {}
+    dades = dict()
     dades['nom'] = line[0]
     dades['mac'] = line[1]
     return dades
+
+def udp():
+    """ dhsaui"""
+    socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    pass
+
+def tcp():
+    """ hola """
+    print(os.getpid())
+    pass
 
 if __name__ == '__main__':
     DEBUG, ARXIUS = lectura_parametres()
     DADES = agafar_dades_servidor(ARXIUS['servidor'])
     print_if_debug(DEBUG, "Parametres de configuracio llegits.")
     EQUIPS = agafar_dades_equips(ARXIUS['equips'])
+    print(EQUIPS)
+    print(DADES)
+    new_pid = os.fork()
+    if new_pid == 0:
+        udp()
+    else:
+        tcp()
