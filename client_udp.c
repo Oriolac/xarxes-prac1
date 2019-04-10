@@ -92,6 +92,7 @@ void recorregut_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr
 			socket_udp(debug, fd, paquet, addr_serv, tors.t, &nack, c);
 			tors.numIntents++;
 			tors.n--;
+			tors.p--;
 		}
 		while(!nack && M*T > tors.t)
 		{
@@ -99,6 +100,7 @@ void recorregut_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr
 			print_if_debug(debug, "Registre equip. Intent %i.", tors.numIntents);
 			socket_udp(debug, fd, paquet, addr_serv, tors.t, &nack,c);
 			tors.numIntents++;
+			tors.p--;
 		}
 		tors.t = M * T;
 		while(!nack && tors.p > 0)

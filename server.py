@@ -8,6 +8,7 @@ import time
 import os
 import socket
 
+
 def print_if_debug(debug, cadena):
     """print_if_debug"""
     if debug:
@@ -85,15 +86,22 @@ def dades_equip(line):
     dades['mac'] = line[1]
     return dades
 
+def tractar_dades_udp(data, address):
+    os._exit(0)
+    print('hi')
+
 def udp():
     """ dhsaui"""
-    socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    pass
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.bind(('', int(DADES['UDP-port'])))
+    quit_server = False
+    
+    crear_proces_per_equip(len(DADES))
 
-def tcp():
-    """ hola """
-    print(os.getpid())
-    pass
+    while not quit_server:
+        pass
+    sock.close()
+
 
 if __name__ == '__main__':
     DEBUG, ARXIUS = lectura_parametres()
@@ -101,9 +109,4 @@ if __name__ == '__main__':
     print_if_debug(DEBUG, "Parametres de configuracio llegits.")
     EQUIPS = agafar_dades_equips(ARXIUS['equips'])
     print(EQUIPS)
-    print(DADES)
-    new_pid = os.fork()
-    if new_pid == 0:
-        udp()
-    else:
-        tcp()
+    udp()
