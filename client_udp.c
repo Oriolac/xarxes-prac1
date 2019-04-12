@@ -110,11 +110,14 @@ void recorregut_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr
 			tors.numIntents++;
 			tors.p--;
 		}
-		print_if_debug(debug,"S'espera %i segons fins nou procés de registre", S);
+		if(tors.q > 0)
+		{
+		    print_if_debug(debug,"S'espera %i segons fins nou procés de registre", S);
+		}
 		sleep(S);
 		tors.q--;
 	}
-	print_if_debug(debug,"No s'ha rebut acceptació.");
+	print_if_debug(debug,"No s'ha rebut acceptació. Nombre de intents: %i",  tors.numIntents);
 }
 
 void socket_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr_in addr_serv, int t, int *nack, struct client c)
@@ -190,7 +193,6 @@ struct paquet_udp read_feedback(int debug, int fd, int t)
 			print_with_time("ERROR => No s'ha rebut el socket.");
 			exit(-1);
 		}
-		print_if_debug(debug, "%i", paquet.type);
 		print_if_debug(debug,"S'ha rebut el paquet: tipus=%s, nom=%s, mac=%s, alea=%s, dades=%s", tipus_pdu(paquet.type), paquet.equip, paquet.mac, paquet.random_number, paquet.dades);
 		sleep(t);
 		return paquet;
