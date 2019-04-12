@@ -26,8 +26,7 @@
 /*
  * Funció: connexio_UDP
  * -----------------
- * Intenta obrir tots els arxius. En cas que no existeixin ho ha de notificar i marcar error.
- * En cas que existeixin i el mode DEBUG estigui activat, s'ha de notificar que s'ha obert. 
+ *
  */
 void connexio_UDP(int debug, struct server s, struct client c)
 {
@@ -86,7 +85,8 @@ void recorregut_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr
 		tors.t = T;
 		tors.p = P;
 		nack = 0;
-		while(tors.n > 0)
+		/* TODO: Revsar nack */
+		while(!nack && tors.n > 0)
 		{
 			print_if_debug(debug, "Registre equip. Intent: %i", tors.numIntents);
 			socket_udp(debug, fd, paquet, addr_serv, tors.t, &nack, c);
@@ -114,7 +114,7 @@ void recorregut_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr
 		sleep(S);
 		tors.q--;
 	}
-	print_if_debug(debug,"No s'ha rebut acceptació. Es seguiran enviant paquets però incrementant els segons.");
+	print_if_debug(debug,"No s'ha rebut acceptació.");
 }
 
 void socket_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr_in addr_serv, int t, int *nack, struct client c)
@@ -137,6 +137,7 @@ void socket_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr_in 
 			print_if_debug(debug, "Rebut paquet REGISTER_NACK");
 			break;
 		case 1:
+		    /* TODO: Mirar si cal que difs clients ho agafin bé */
 			print_if_debug(debug, "Rebut paquet REGISTER_ACK");
 			print_with_time("MSG.  => Equip passa a l'estat REGISTERED");
 			print_with_time("INFO  => Acceptada subscripció amb servidor: (nom:%s, mac:%s, alea:%s, port tcp:%s)",paquet.equip, paquet.mac, paquet.random_number, paquet.dades);
@@ -183,12 +184,13 @@ struct paquet_udp read_feedback(int debug, int fd, int t)
 		return paquet;
 	} else if(FD_ISSET(fd, &readfds))
 	{
-		a=recvfrom(fd, &paquet, sizeof(paquet),0, (struct sockaddr * )0, (socklen_t *)0);
+		a=recvfrom(fd, &paquet, sizeof(paquet),0, (struct sockaddr * )0, (socklen_t *) 0);
 		if( a < 0)
 		{
 			print_with_time("ERROR => No s'ha rebut el socket.");
 			exit(-1);
 		}
+		print_if_debug(debug, "%i", paquet.type);
 		print_if_debug(debug,"S'ha rebut el paquet: tipus=%s, nom=%s, mac=%s, alea=%s, dades=%s", tipus_pdu(paquet.type), paquet.equip, paquet.mac, paquet.random_number, paquet.dades);
 		sleep(t);
 		return paquet;
