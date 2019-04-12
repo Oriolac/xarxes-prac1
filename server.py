@@ -10,15 +10,21 @@ import signal
 import struct
 
 
+
 def print_if_debug(debug, cadena):
     """print_if_debug"""
     if debug:
-        print(time.strftime("%H:%M:%S DEBUG => " + cadena))
+        print(time.strftime("%H:%M:%S DEBUG => ") + cadena)
 
 
 def print_if_error(cadena):
     """ print_if_debug """
-    print(time.strftime("%H:%M:%S ERROR => " + cadena))
+    print(time.strftime("%H:%M:%S ERROR => ") + cadena)
+
+
+def print_with_time(cadena):
+    """ print_with_time """
+    print(time.strftime("%H:%M:%S ") + cadena)
 
 
 def lectura_parametres():
@@ -92,6 +98,19 @@ def dades_equip(line):
     dades['reg'] = False
     return dades
 
+def to_str_tipus(tipus):
+    """ to_str_tipus """
+    tipus = ord(tipus)
+    dicc_tipus = {0x00 : 'REGISTER_REQ', 0x01 : 'REGISTER_ACK', 0x02 : 'REGISTER_NACK',\
+        0x03 : 'REGISTER_REJ', 0x09 : 'ERROR', 0x10 : 'ALIVE_INF', 0x11 : 'ALIVE_ACK',\
+        0x12 : 'ALIVE_NACK', 0x13 : 'ALIVE_REJ'}
+    return dicc_tipus[tipus]
+
+def to_str_dades_udp(dades):
+    """ to_str_dades_udp """
+    return 'bytes=' + str(len(dades)) + ', tipus=' + str(to_str_tipus(dades[0])) + ', nom=' + \
+        dades[1:7] + ', mac=' + dades[8:20] + ', alea=' + dades[21:26] + ', dades=' + dades[27:]
+
 def create_rej_pack():
     """ create_rej_pack """
     camps = ['', '', '', '']
@@ -106,6 +125,7 @@ def create_rej_pack():
 def enviar_paquet_udp_rej(sock, address):
     """ enviar_paquet_udp_rej """
     data = create_rej_pack()
+    print_if_debug(DEBUG, 'Enviat ' + to_str_dades_udp(data))
     sock.sendto(data, address)
 
 
@@ -136,18 +156,20 @@ def enviar_paquet_ack(sock, address, dades_serv):
 
     data = struct.pack('c7s13s7s50s', chr(1), dades_serv['Nom'], dades_serv['MAC'], num_aleatori(),
                        dades_serv['TCP-port'])
+    print_if_debug(DEBUG, 'Enviat ' + to_str_dades_udp(data))
     sock.sendto(data, address)
 
 
-def tractar_dades_udp(sock, data, address, equips, dades_servidor):
+def tractar_dades_udp(data, sock, address, equips, dades_servidor):
     """ fadsfa """
+
     if ord(data[0]) != 0 or not is_client_allowed(data, equips):
+        for equip in equips:
+            if equip['mac'].__eq__(data[8:20]):
+                equip['reg'] = False
         enviar_paquet_udp_rej(sock, address)
     else:
         enviar_paquet_ack(sock, address, dades_servidor)
-    print(ord(data[0]))
-    data = data[1:]
-    print(data[:6])
     print(address)
 
 
@@ -155,6 +177,7 @@ def udp(dades, equips):
     """ dhsaui"""
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    print_if_debug(DEBUG, 'S\'ha creat el socket UDP')
 
     def signal_handler(sign, frame):
         """ signal_handler """
@@ -166,16 +189,19 @@ def udp(dades, equips):
     break_while = False
     signal.signal(signal.SIGINT, signal_handler)
     sock.bind(('', int(DADES['UDP-port'])))
+    print_if_debug(DEBUG, 'Assignat el socket al port: ' + DADES['UDP-port'])
     while not break_while:
         buff, address = sock.recvfrom(78)
-        tractar_dades_udp(sock, buff, address, equips, dades)
+        print_if_debug(DEBUG, 'Rebut ' + to_str_dades_udp(buff))
+        tractar_dades_udp(buff, sock, address, equips, dades)
     sock.close()
 
 
 if __name__ == '__main__':
     DEBUG, ARXIUS = lectura_parametres()
+    print_if_debug(DEBUG, 'Parametres de configuracio llegits.')
     DADES = agafar_dades_servidor(ARXIUS['servidor'])
-    print_if_debug(DEBUG, "Parametres de configuracio llegits.")
+    print_with_time('INFO => Llegits parametres arxiu de configuracio')
     EQUIPS = agafar_dades_equips(ARXIUS['equips'])
-    print(EQUIPS)
+    print_with_time('INFO => Llegits ' + str(len(EQUIPS)) + ' equips autoritzats en el sistema')
     udp(DADES, EQUIPS)
