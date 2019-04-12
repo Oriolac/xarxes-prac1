@@ -4,6 +4,11 @@
 
 #include "client_funcions.h"
 
+
+/*
+ * Funció: canvi_nom_arxiu
+ * -----------------
+ */
 void canvi_nom_arxiu(int argc, char **argv, int i, char *arxiu)
 {
 	if(argc <= i+1)

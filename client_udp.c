@@ -26,7 +26,7 @@
 /*
  * Funció: connexio_UDP
  * -----------------
- *
+ * Crea el socket, agafa l'adreça del servidor i comença les peticions de registre.
  */
 void connexio_UDP(int debug, struct server s, struct client c)
 {
@@ -50,6 +50,11 @@ void connexio_UDP(int debug, struct server s, struct client c)
     recorregut_udp(debug, fd, paquet, addr_serv, c);
 }
 
+/*
+ * Funció: addr_servidor
+ * -----------------
+ * Retorna l'adreça del servidor donada una estructura server s
+ */
 struct sockaddr_in addr_servidor(struct server s)
 {
 	struct hostent *ent;
@@ -69,6 +74,11 @@ struct sockaddr_in addr_servidor(struct server s)
 	return addr_serv;
 }
 
+/*
+ * Funció: recorregut_udp
+ * -----------------
+ * Realitza la temporització del registre
+ */
 void recorregut_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr_in addr_serv, struct client c)
 {
 	struct temporitzadors tors;
@@ -89,7 +99,7 @@ void recorregut_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr
 		while(!nack && tors.n > 0)
 		{
 			print_if_debug(debug, "Registre equip. Intent: %i", tors.numIntents);
-			socket_udp(debug, fd, paquet, addr_serv, tors.t, &nack, c);
+			peticio_registre(debug, fd, paquet, addr_serv, tors.t, &nack, c);
 			tors.numIntents++;
 			tors.n--;
 			tors.p--;
@@ -98,7 +108,7 @@ void recorregut_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr
 		{
 			tors.t += T;
 			print_if_debug(debug, "Registre equip. Intent %i.", tors.numIntents);
-			socket_udp(debug, fd, paquet, addr_serv, tors.t, &nack,c);
+			peticio_registre(debug, fd, paquet, addr_serv, tors.t, &nack,c);
 			tors.numIntents++;
 			tors.p--;
 		}
@@ -106,7 +116,7 @@ void recorregut_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr
 		while(!nack && tors.p > 0)
 		{
 			print_if_debug(debug, "Registre equip. Intent %i", tors.numIntents);
-			socket_udp(debug, fd, paquet, addr_serv, tors.t, &nack,c);
+			peticio_registre(debug, fd, paquet, addr_serv, tors.t, &nack,c);
 			tors.numIntents++;
 			tors.p--;
 		}
@@ -120,7 +130,13 @@ void recorregut_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr
 	print_if_debug(debug,"No s'ha rebut acceptació. Nombre de intents: %i",  tors.numIntents);
 }
 
-void socket_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr_in addr_serv, int t, int *nack, struct client c)
+
+/*
+ * Funció: peticio_registre
+ * -----------------
+ * Envia el paquet de registre i mira si reb confirmació
+ */
+void peticio_registre(int debug, int fd, struct paquet_udp paquet, struct sockaddr_in addr_serv, int t, int *nack, struct client c)
 {
 	sendto_udp(fd, paquet, addr_serv);
 
@@ -151,7 +167,11 @@ void socket_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr_in 
 	}
 
 }
-
+/*
+ * Funció: sendto_udp
+ * -----------------
+ * Realitza l'enviament del paquet del client
+ */
 void sendto_udp(int fd, struct paquet_udp paquet,struct sockaddr_in addr_serv)
 {
 	int a;
@@ -164,6 +184,11 @@ void sendto_udp(int fd, struct paquet_udp paquet,struct sockaddr_in addr_serv)
 
 }
 
+/*
+ * Funció: read_feedback
+ * -----------------
+ * Retorna el paquet del servidor, en cas que no hi hagi hagut comunicació, retorna estructura buida.
+ */
 struct paquet_udp read_feedback(int debug, int fd, int t)
 {
 	int a;
