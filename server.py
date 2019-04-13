@@ -10,7 +10,6 @@ import signal
 import struct
 
 
-
 def print_if_debug(debug, cadena):
     """print_if_debug"""
     if debug:
@@ -95,7 +94,7 @@ def dades_equip(line):
     dades = dict()
     dades['nom'] = line[0]
     dades['mac'] = line[1]
-    dades['reg'] = False
+    dades['estat'] = 'DISCONNECTED'
     return dades
 
 def to_str_tipus(tipus):
@@ -129,21 +128,21 @@ def enviar_paquet_udp_rej(sock, address):
     sock.sendto(data, address)
 
 
-def is_client_allowed(paquet, equips):
+def is_client_allowed(paquet, equips, address):
     """ is_client_allowed """
     equip_trobat = -1
     index = 0
     for equip in equips:
         if equip['nom'].__eq__(paquet[1:6]) and equip['mac'].__eq__(paquet[8:20]):
             equip_trobat = equips[index]
-            print(equip_trobat)
-            if not equip['reg']:
-                print('Registre acceptat')
-                equip['reg'] = True
+            if equip['estat'] == 'DISCONNECTED':
+                print_with_time('MSG.  => Acceptat registre. Equip: nom=' + equip['nom'] +\
+                     ', ip=' + address[0] + ', mac=' + equip['mac'] + ', alea=' + paquet[21:26])
+                equip['estat'] = 'REGISTERED'
                 return True
         index += 1
     if equip_trobat != -1:
-        equip_trobat['reg'] = False
+        equip_trobat['estat'] = 'DISCONNECTED'
     return False
 
 
@@ -154,22 +153,27 @@ def enviar_paquet_ack(sock, address, dades_serv):
         import random
         return str(random.randint(0, 1000000))
 
-    data = struct.pack('c7s13s7s50s', chr(1), dades_serv['Nom'], dades_serv['MAC'], num_aleatori(),
+    data = struct.pack('c7s13s7s50s', chr(0x01), dades_serv['Nom'], dades_serv['MAC'], num_aleatori(),
                        dades_serv['TCP-port'])
     print_if_debug(DEBUG, 'Enviat ' + to_str_dades_udp(data))
     sock.sendto(data, address)
 
 
+def enviar_paquet_err(sock, address):
+    data = struct.pack('c7s13s7s50s', chr(0x09))
+
 def tractar_dades_udp(data, sock, address, equips, dades_servidor):
     """ fadsfa """
 
-    if ord(data[0]) != 0 or not is_client_allowed(data, equips):
+    if ord(data[0]) == 0x00 and is_client_allowed(data, equips, address):
+        enviar_paquet_ack(sock, address, dades_servidor)
+    elif ord(data[0]) != 0 or not is_client_allowed(data, equips, address):
         for equip in equips:
             if equip['mac'].__eq__(data[8:20]):
-                equip['reg'] = False
+                equip['estat'] = 'DISCONNECTED'
         enviar_paquet_udp_rej(sock, address)
     else:
-        enviar_paquet_ack(sock, address, dades_servidor)
+        enviar_paquet_err(sock, address)
     print(address)
 
 
@@ -201,7 +205,7 @@ if __name__ == '__main__':
     DEBUG, ARXIUS = lectura_parametres()
     print_if_debug(DEBUG, 'Parametres de configuracio llegits.')
     DADES = agafar_dades_servidor(ARXIUS['servidor'])
-    print_with_time('INFO => Llegits parametres arxiu de configuracio')
+    print_with_time('INFO  => Llegits parametres arxiu de configuracio')
     EQUIPS = agafar_dades_equips(ARXIUS['equips'])
-    print_with_time('INFO => Llegits ' + str(len(EQUIPS)) + ' equips autoritzats en el sistema')
+    print_with_time('INFO  => Llegits ' + str(len(EQUIPS)) + ' equips autoritzats en el sistema')
     udp(DADES, EQUIPS)

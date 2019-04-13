@@ -47,7 +47,7 @@ void connexio_UDP(int debug, struct server s, struct client c)
 
 	paquet = escriure_paquet(0, c,"000000");
 	
-    recorregut_udp(debug, fd, paquet, addr_serv, c);
+    recorregut_udp(debug, fd, paquet, addr_serv, c, s);
 }
 
 /*
@@ -79,7 +79,7 @@ struct sockaddr_in addr_servidor(struct server s)
  * -----------------
  * Realitza la temporització del registre
  */
-void recorregut_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr_in addr_serv, struct client c)
+void recorregut_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr_in addr_serv, struct client c, struct server s)
 {
 	struct temporitzadors tors;
 	int nack = 0;
@@ -95,11 +95,10 @@ void recorregut_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr
 		tors.t = T;
 		tors.p = P;
 		nack = 0;
-		/* TODO: Revsar nack */
 		while(!nack && tors.n > 0)
 		{
 			print_if_debug(debug, "Registre equip. Intent: %i", tors.numIntents);
-			peticio_registre(debug, fd, paquet, addr_serv, tors.t, &nack, c);
+			peticio_registre(debug, fd, paquet, addr_serv, tors.t, &nack, c, s);
 			tors.numIntents++;
 			tors.n--;
 			tors.p--;
@@ -108,7 +107,7 @@ void recorregut_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr
 		{
 			tors.t += T;
 			print_if_debug(debug, "Registre equip. Intent %i.", tors.numIntents);
-			peticio_registre(debug, fd, paquet, addr_serv, tors.t, &nack,c);
+			peticio_registre(debug, fd, paquet, addr_serv, tors.t, &nack, c, s);
 			tors.numIntents++;
 			tors.p--;
 		}
@@ -116,7 +115,7 @@ void recorregut_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr
 		while(!nack && tors.p > 0)
 		{
 			print_if_debug(debug, "Registre equip. Intent %i", tors.numIntents);
-			peticio_registre(debug, fd, paquet, addr_serv, tors.t, &nack,c);
+			peticio_registre(debug, fd, paquet, addr_serv, tors.t, &nack, c, s);
 			tors.numIntents++;
 			tors.p--;
 		}
@@ -136,7 +135,7 @@ void recorregut_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr
  * -----------------
  * Envia el paquet de registre i mira si reb confirmació
  */
-void peticio_registre(int debug, int fd, struct paquet_udp paquet, struct sockaddr_in addr_serv, int t, int *nack, struct client c)
+void peticio_registre(int debug, int fd, struct paquet_udp paquet, struct sockaddr_in addr_serv, int t, int *nack, struct client c, struct server s)
 {
 	sendto_udp(fd, paquet, addr_serv);
 
@@ -156,11 +155,10 @@ void peticio_registre(int debug, int fd, struct paquet_udp paquet, struct sockad
 			print_if_debug(debug, "Rebut paquet REGISTER_NACK");
 			break;
 		case 1:
-		    /* TODO: Mirar si cal que difs clients ho agafin bé */
 			print_if_debug(debug, "Rebut paquet REGISTER_ACK");
 			print_with_time("MSG.  => Equip passa a l'estat REGISTERED");
 			print_with_time("INFO  => Acceptada subscripció amb servidor: (nom:%s, mac:%s, alea:%s, port tcp:%s)",paquet.equip, paquet.mac, paquet.random_number, paquet.dades);
-			comunicacio_periodica(debug, fd,paquet,addr_serv,c);
+			comunicacio_periodica(debug, fd, paquet, addr_serv, c, s);
 			break;
 		default:
 			break;
@@ -225,15 +223,21 @@ struct paquet_udp read_feedback(int debug, int fd, int t)
 	return paquet;
 }
 
-void comunicacio_periodica(int debug, int fd, struct paquet_udp paquet, struct sockaddr_in addr_serv, struct client c)
+void comunicacio_periodica(int debug, int fd, struct paquet_udp paquet, struct sockaddr_in addr_serv, struct client c, struct server s)
 {
 	int stop;
 	int primer_alive;
 	int count_no_alive_ack;
-	struct paquet_udp paquet_sendto;
+	struct paquet_udp alive;
 	struct paquet_udp paquet_recv;
+	struct info_serv info_server;
 
 	print_if_debug(debug, "Començant la comunicació periòdica.");
+	memset(&info_server, 0, sizeof(info_server));
+	strcpy(info_server.nom, paquet.equip);
+	strcpy(info_server.ip, s.server);
+	strcpy(info_server.mac, paquet.mac);
+	strcpy(info_server.aleatori, paquet.random_number);
 
 	stop = 0;
 	count_no_alive_ack = 0;
@@ -241,10 +245,9 @@ void comunicacio_periodica(int debug, int fd, struct paquet_udp paquet, struct s
 
 	while(!stop)
 	{
-		paquet_sendto = escriure_paquet(16, c, paquet.random_number);
-		sendto_udp(fd, paquet_sendto, addr_serv);
-		print_if_debug(debug, "Enviat: bytes=%i, comanda=%s, nom=%s, mac=%s, alea=%s, dades=%s", sizeof(paquet_sendto),tipus_pdu(paquet_sendto.type), paquet_sendto.equip, paquet_sendto.mac, paquet_sendto.random_number, paquet_sendto.dades);
-		sleep(2);
+		alive = escriure_paquet(0x10, c, paquet.random_number);
+		sendto_udp(fd, alive, addr_serv);
+		print_if_debug(debug, "Enviat: bytes=%i, comanda=%s, nom=%s, mac=%s, alea=%s, dades=%s", sizeof(alive),tipus_pdu(alive.type), alive.equip, alive.mac, alive.random_number, alive.dades);
 		paquet_recv = read_feedback(debug, fd, R);
 		switch (paquet_recv.type)
 		{
@@ -253,7 +256,7 @@ void comunicacio_periodica(int debug, int fd, struct paquet_udp paquet, struct s
 				stop=control_stop(count_no_alive_ack);
 				break;
 			case 17:
-				if(!strcmp(paquet_recv.random_number, paquet_sendto.random_number))
+				if(es_servidor_correcte(paquet_recv, info_server))
 				{
 					count_no_alive_ack = 0;
 					if(!primer_alive)
@@ -262,6 +265,7 @@ void comunicacio_periodica(int debug, int fd, struct paquet_udp paquet, struct s
 						primer_alive = 1;
 					}
 				} else {
+					print_with_time("INFO  => Error recepció paquet UDP. Servidor incorrecte (correcte: nom=%s, ip=%s, mac=%s, alea=%s)", info_server.nom, info_server.ip, info_server.mac, info_server.aleatori);
 					count_no_alive_ack++;
 					stop = control_stop(count_no_alive_ack);
 				}
@@ -277,6 +281,10 @@ void comunicacio_periodica(int debug, int fd, struct paquet_udp paquet, struct s
 		}
 	}
 	print_if_debug(debug, "Marxem de la comunicació periòdica");
+}
+
+int es_servidor_correcte(struct paquet_udp paquet_recv, struct info_serv info_s){
+	return !strcmp(paquet_recv.equip, info_s.nom) && !strcmp(paquet_recv.mac, info_s.mac) && !strcmp(paquet_recv.random_number, info_s.aleatori);
 }
 
 int control_stop(int count_no_alive_ack)

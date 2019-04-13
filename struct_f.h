@@ -43,3 +43,10 @@ struct temporitzadors
     int q;
     int numIntents;
 };
+struct info_serv
+{
+    char nom[7];
+    char ip[10];
+    char mac[13];
+    char aleatori[7];
+};
