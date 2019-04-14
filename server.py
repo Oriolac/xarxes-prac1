@@ -3,7 +3,7 @@
 Servidor
 """
 
-from server_data import *
+import server_data as serdat
 import sys
 import time
 import socket
@@ -29,7 +29,7 @@ def print_with_time(cadena):
 
 def to_str_dades_udp(dades):
     """ to_str_dades_udp """
-    return 'bytes=' + str(len(dades)) + ', tipus=' + str(to_str_tipus(dades[0])) + ', nom=' + \
+    return 'bytes=' + str(len(dades)) + ', tipus=' + str(serdat.to_str_tipus(dades[0])) + ', nom=' + \
         dades[1:7] + ', mac=' + dades[8:20] + ', alea=' + dades[21:27] + ', dades=' + dades[27:]
 
 
@@ -142,10 +142,10 @@ def udp(dades, equips):
 
 
 if __name__ == '__main__':
-    DEBUG, ARXIUS = lectura_parametres()
+    DEBUG, ARXIUS = serdat.lectura_parametres()
     print_if_debug(DEBUG, 'Parametres de configuracio llegits.')
-    DADES = agafar_dades_servidor(ARXIUS['servidor'])
+    DADES = serdat.agafar_dades_servidor(ARXIUS['servidor'])
     print_with_time('INFO  => Llegits parametres arxiu de configuracio')
-    EQUIPS = agafar_dades_equips(ARXIUS['equips'])
+    EQUIPS = serdat.agafar_dades_equips(ARXIUS['equips'])
     print_with_time('INFO  => Llegits ' + str(len(EQUIPS)) + ' equips autoritzats en el sistema')
     udp(DADES, EQUIPS)

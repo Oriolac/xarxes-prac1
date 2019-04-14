@@ -12,6 +12,9 @@
 #include <sys/select.h>
 #include <signal.h>
 
+#include <unistd.h>
+#include <pthread.h>
+
 #include "client_funcions.h"
 
 #define N 3
@@ -234,6 +237,18 @@ void comunicacio_periodica(int debug, int fd, struct paquet_udp paquet, struct s
 	struct paquet_udp alive;
 	struct paquet_udp paquet_recv;
 	struct info_serv info_server;
+	pthread_t idHilo;
+	int error;
+	int quit;
+
+	quit = 0;
+
+	error = pthread_create(&idHilo, NULL, thread_function, &quit);
+	if(error != 0)
+	{
+		print_with_time("ERROR => Error al crear el thread per rebre línea de comandes.");
+		exit(-1);
+	}
 
 	print_if_debug(debug, "Començant la comunicació periòdica.");
 	memset(&info_server, 0, sizeof(info_server));
@@ -246,7 +261,7 @@ void comunicacio_periodica(int debug, int fd, struct paquet_udp paquet, struct s
 	count_no_alive_ack = 0;
 	primer_alive = 0;
 
-	while(!stop)
+	while(!stop && !quit)
 	{
 		alive = escriure_paquet(0x10, c, paquet.random_number);
 		sendto_udp(fd, alive, addr_serv);
@@ -291,6 +306,27 @@ void comunicacio_periodica(int debug, int fd, struct paquet_udp paquet, struct s
 		}
 	}
 	print_if_debug(debug, "Marxem de la comunicació periòdica");
+	if(quit)
+	{
+		print_with_time("MSG.  => Es finalitza el client tancant tots els canals de comunicació.");
+		exit(1);
+	}
+}
+
+void *thread_function(void* parameters)
+{
+	int *quit;
+	char comanda[10];
+	quit = (int *) parameters;
+	while(!*quit)
+	{
+		scanf("%s", comanda);
+		if(strcmp(comanda, "quit\0") == 0)
+		{
+			*quit = 1;
+		}
+	}
+	return NULL;
 }
 
 int es_servidor_correcte(struct paquet_udp paquet_recv, struct info_serv info_s){
