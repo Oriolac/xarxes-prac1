@@ -38,6 +38,5 @@ int comprovacio_alive_ack(int debug,struct paquet_udp paquet1,struct paquet_udp 
 int es_servidor_correcte(struct paquet_udp paquet_recv, struct info_serv info_s);
 int control_stop(int count_no_alive_ack);
 struct paquet_udp escriure_paquet(int type ,struct client c, char * random);
-void *thread_function(void* parameters);
 
 #endif
