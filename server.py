@@ -9,7 +9,7 @@ import time
 import socket
 import signal
 import struct
-
+import os
 
 def print_if_debug(debug, cadena):
     """print_if_debug"""
@@ -90,24 +90,27 @@ def confirmacio_registre(data, sock, address, equips, dades_servidor):
                         equip['mac'] + ', alea=' + data[21:27])
                     print_with_time('MSG.  => Equip ' + data[1:6] + ' passa a estat ' + equip['estat'])
                     enviar_paquet_ack(sock, address, dades_servidor)
+                    return True
                 elif not equip['address'].__eq__(address):
                     enviar_paquet_nack(sock, address, 'Discrepancies amb IP')
+                    return False
                 else:
-                    print_with_time(
-                        'MSG.  => Acceptat registre. Equip: nom=' + equip['nom'] + ', ip=' + address[0] + ', mac=' +
-                        equip['mac'] + ', alea=' + data[21:27])
                     enviar_paquet_ack(sock, address, dades_servidor)
+                    return True
             else:
                 enviar_paquet_nack(sock, address, 'Discrepancies amb el nombre aleatori')
+                return False
     if not autoritzat:
         enviar_paquet_udp_rej(sock, address, 'Equip no autoritzat en el sistema')
+        return True
 
 
 def tractar_dades_udp(data, sock, address, equips, dades_servidor):
     """ fadsfa """
 
     if ord(data[0]) == 0x00:
-        confirmacio_registre(data, sock, address, equips, dades_servidor)
+        if confirmacio_registre(data, sock, address, equips, dades_servidor):
+            print_if_debug(DEBUG, 'Sha de fer el foorkkk')
     elif ord(data[0]) == 0x10:
         pass
     else:

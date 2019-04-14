@@ -197,7 +197,7 @@ struct paquet_udp read_feedback(int debug, int fd, int t)
 	struct timeval timev;
 
 	memset(&paquet, 0, sizeof(paquet));
-	paquet.type = 0x13
+	paquet.type = 0x13;
 
 	timev.tv_sec = t;
 	timev.tv_usec = 0;
@@ -209,17 +209,16 @@ struct paquet_udp read_feedback(int debug, int fd, int t)
 	if( a < 0 )
 	{
 		print_with_time("ERROR => select.\n");
-		paquet.type = 0x09
+		paquet.type = 0x09;
 		return paquet;
 	} else if(FD_ISSET(fd, &readfds))
 	{
 		a=recvfrom(fd, &paquet, sizeof(paquet),0, (struct sockaddr * )0, (socklen_t *) 0);
-		if( a < 0)if equip['nom'].__eq__(paquet[1:6]) and equip['mac'].__eq__(paquet[8:20]):
+		if( a < 0)
 		{
 			print_with_time("ERROR => No s'ha rebut el socket.");
 			exit(-1);
-		}p paquet;
-	struct timeval timev
+		}
 		print_if_debug(debug,"S'ha rebut el paquet: tipus=%s, nom=%s, mac=%s, alea=%s, dades=%s", tipus_pdu(paquet.type), paquet.equip, paquet.mac, paquet.random_number, paquet.dades);
 		sleep(t);
 		return paquet;
