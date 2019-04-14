@@ -3,6 +3,7 @@
 Servidor
 """
 
+from server_data import *
 import sys
 import time
 import socket
@@ -26,91 +27,13 @@ def print_with_time(cadena):
     print(time.strftime("%H:%M:%S ") + cadena)
 
 
-def lectura_parametres():
-    """lectura_parametres"""
-
-    nom_arxius = {'servidor': 'server.cfg', 'equips': 'equips.dat'}
-    debug = False
-    trobat_conf_server = False
-    trobat_conf_equips = False
-    for arg in sys.argv:
-        if arg == "-d":
-            debug = True
-            print_if_debug(debug, "Mode DEBUG ON.")
-        elif arg == "-c":
-            trobat_conf_server = True
-        elif trobat_conf_server:
-            nom_arxius["servidor"] = arg
-            print_if_debug(debug, "Arxiu de dades de software modificat: " + arg)
-            trobat_conf_server = False
-        elif arg == "-u":
-            trobat_conf_equips = True
-        elif trobat_conf_equips:
-            nom_arxius["equips"] = arg
-            print_if_debug(debug, "Arxiu d'equips autoritzats modificat: " + arg)
-            trobat_conf_equips = False
-    if trobat_conf_equips or trobat_conf_server:
-        print("No s'han pogut obrir els arxius modificats")
-        sys.exit()
-    return (debug, obrir_arxius(nom_arxius))
-
-
-def obrir_arxius(nom_arxius):
-    """fdsa """
-    try:
-        f_server = open(nom_arxius['servidor'], 'r')
-        f_equip = open(nom_arxius['equips'], 'r')
-    except EnvironmentError:
-        print_if_error("No s'han pogut obrir els arxius.")
-        sys.exit()
-    return {'servidor': f_server, 'equips': f_equip}
-
-
-def agafar_dades_servidor(fitxer):
-    """ agafar_dades_servidor """
-    dades = {}
-    lines = fitxer.readlines()
-    for line in lines:
-        line = line.split()
-        for word in line:
-            if word in ('Nom', 'MAC', 'UDP-port', 'TCP-port'):
-                dades[word] = line[1]
-    return dades
-
-
-def agafar_dades_equips(fitxer):
-    """ agafar_dades_equips """
-    llistat_dades = []
-    lines = fitxer.readlines()
-    for line in lines:
-        line = line.split()
-        if len(line) == 2:
-            llistat_dades.append(dades_equip(line))
-    return llistat_dades
-
-
-def dades_equip(line):
-    """ fsjadiofas """
-    dades = dict()
-    dades['nom'] = line[0]
-    dades['mac'] = line[1]
-    dades['estat'] = 'DISCONNECTED'
-    return dades
-
-def to_str_tipus(tipus):
-    """ to_str_tipus """
-    tipus = ord(tipus)
-    dicc_tipus = {0x00 : 'REGISTER_REQ', 0x01 : 'REGISTER_ACK', 0x02 : 'REGISTER_NACK',\
-        0x03 : 'REGISTER_REJ', 0x09 : 'ERROR', 0x10 : 'ALIVE_INF', 0x11 : 'ALIVE_ACK',\
-        0x12 : 'ALIVE_NACK', 0x13 : 'ALIVE_REJ'}
-    return dicc_tipus[tipus]
-
 def to_str_dades_udp(dades):
     """ to_str_dades_udp """
     return 'bytes=' + str(len(dades)) + ', tipus=' + str(to_str_tipus(dades[0])) + ', nom=' + \
         dades[1:7] + ', mac=' + dades[8:20] + ', alea=' + dades[21:26] + ', dades=' + dades[27:]
 
-def create_rej_pack():
+
+def create_rej_pack(data):
     """ create_rej_pack """
     camps = ['', '', '', '']
     llargada_camps = (7, 13, 7, 50)
@@ -118,14 +41,14 @@ def create_rej_pack():
     for llargada in llargada_camps:
         camps[index_camps] = camps[index_camps].zfill(llargada)
         index_camps += 1
-    return struct.pack('c7s13s7s50s', chr(3), '', '', '', '')
+    return struct.pack('c7s13s7s50s', chr(3), '', '', '', data)
 
 
-def enviar_paquet_udp_rej(sock, address):
+def enviar_paquet_udp_rej(sock, address, data):
     """ enviar_paquet_udp_rej """
-    data = create_rej_pack()
-    print_if_debug(DEBUG, 'Enviat ' + to_str_dades_udp(data))
-    sock.sendto(data, address)
+    pack = create_rej_pack(data)
+    print_if_debug(DEBUG, 'Enviat ' + to_str_dades_udp(pack))
+    sock.sendto(pack, address)
 
 
 def is_client_allowed(paquet, equips, address):
@@ -167,14 +90,15 @@ def tractar_dades_udp(data, sock, address, equips, dades_servidor):
 
     if ord(data[0]) == 0x00 and is_client_allowed(data, equips, address):
         enviar_paquet_ack(sock, address, dades_servidor)
-    elif ord(data[0]) != 0 or not is_client_allowed(data, equips, address):
+
+    elif ord(data[0]) == 0x00 and not is_client_allowed(data, equips, address):
         for equip in equips:
             if equip['mac'].__eq__(data[8:20]):
                 equip['estat'] = 'DISCONNECTED'
-        enviar_paquet_udp_rej(sock, address)
+        enviar_paquet_udp_rej(sock, address, 'Equip no autoritzat en el sistema.')
+
     else:
         enviar_paquet_err(sock, address)
-    print(address)
 
 
 def udp(dades, equips):

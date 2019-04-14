@@ -23,6 +23,8 @@
 #define R 3
 #define U 3
 
+/* TODO: en estat registered o alive, si rep REGISTER_ACK, es queda a REGISTERED */
+
 /*
  * Funció: connexio_UDP
  * -----------------
@@ -195,6 +197,7 @@ struct paquet_udp read_feedback(int debug, int fd, int t)
 	struct timeval timev;
 
 	memset(&paquet, 0, sizeof(paquet));
+	paquet.type = 0x13
 
 	timev.tv_sec = t;
 	timev.tv_usec = 0;
@@ -206,7 +209,7 @@ struct paquet_udp read_feedback(int debug, int fd, int t)
 	if( a < 0 )
 	{
 		print_with_time("ERROR => select.\n");
-		paquet.type =4;
+		paquet.type = 0x09
 		return paquet;
 	} else if(FD_ISSET(fd, &readfds))
 	{
@@ -251,11 +254,11 @@ void comunicacio_periodica(int debug, int fd, struct paquet_udp paquet, struct s
 		paquet_recv = read_feedback(debug, fd, R);
 		switch (paquet_recv.type)
 		{
-			case 0:
+			case 0x13:
 				count_no_alive_ack++;
 				stop=control_stop(count_no_alive_ack);
 				break;
-			case 17:
+			case 0x11:
 				if(es_servidor_correcte(paquet_recv, info_server))
 				{
 					count_no_alive_ack = 0;
@@ -270,7 +273,7 @@ void comunicacio_periodica(int debug, int fd, struct paquet_udp paquet, struct s
 					stop = control_stop(count_no_alive_ack);
 				}
 				break;
-			case 19:
+			case 0x12:
 				print_with_time("MSG.  => Equip passa a l'estat DISCONNECTED");
 				exit(-1);
 				break;
