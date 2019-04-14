@@ -148,15 +148,15 @@ void peticio_registre(int debug, int fd, struct paquet_udp paquet, struct sockad
 
 	switch (paquet.type)
 	{
-		case 3:
+		case 0x03:
 			print_with_time("MSG.  => El registre ha estat rebutjat. Motiu: Rebut paquet REGISTER_REJ");
 			print_with_time("MSG.  => Equip passa a l'estat DISCONNECTED");
 			exit(0);
-		case 2:
+		case 0x02:
 			*nack = 1;
 			print_if_debug(debug, "Rebut paquet REGISTER_NACK");
 			break;
-		case 1:
+		case 0x01:
 			print_if_debug(debug, "Rebut paquet REGISTER_ACK");
 			print_with_time("MSG.  => Equip passa a l'estat REGISTERED");
 			print_with_time("INFO  => Acceptada subscripció amb servidor: (nom:%s, mac:%s, alea:%s, port tcp:%s)",paquet.equip, paquet.mac, paquet.random_number, paquet.dades);
@@ -214,11 +214,12 @@ struct paquet_udp read_feedback(int debug, int fd, int t)
 	} else if(FD_ISSET(fd, &readfds))
 	{
 		a=recvfrom(fd, &paquet, sizeof(paquet),0, (struct sockaddr * )0, (socklen_t *) 0);
-		if( a < 0)
+		if( a < 0)if equip['nom'].__eq__(paquet[1:6]) and equip['mac'].__eq__(paquet[8:20]):
 		{
 			print_with_time("ERROR => No s'ha rebut el socket.");
 			exit(-1);
-		}
+		}p paquet;
+	struct timeval timev
 		print_if_debug(debug,"S'ha rebut el paquet: tipus=%s, nom=%s, mac=%s, alea=%s, dades=%s", tipus_pdu(paquet.type), paquet.equip, paquet.mac, paquet.random_number, paquet.dades);
 		sleep(t);
 		return paquet;
@@ -277,6 +278,13 @@ void comunicacio_periodica(int debug, int fd, struct paquet_udp paquet, struct s
 				print_with_time("MSG.  => Equip passa a l'estat DISCONNECTED");
 				exit(-1);
 				break;
+		    case 0x01:
+                print_if_debug(debug, "Rebut paquet REGISTER_ACK");
+                print_with_time("MSG.  => Equip passa a l'estat REGISTERED");
+                print_with_time("INFO  => Acceptada subscripció amb servidor: (nom:%s, mac:%s, alea:%s, port tcp:%s)",paquet_recv.equip, paquet_recv.mac, paquet_recv.random_number, paquet_recv.dades);
+                comunicacio_periodica(debug, fd, paquet_recv, addr_serv, c, s);
+                stop = 1;
+                break;
 			default:
 				print_with_time("ERROR => Rebut paquet no disponible. Intentem tornar a fer el registre.");
 				stop=1;

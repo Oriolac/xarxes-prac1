@@ -1,5 +1,5 @@
-
 from server import *
+
 
 def lectura_parametres():
     """lectura_parametres"""
@@ -76,7 +76,10 @@ def dades_equip(line):
 def to_str_tipus(tipus):
     """ to_str_tipus """
     tipus = ord(tipus)
-    dicc_tipus = {0x00 : 'REGISTER_REQ', 0x01 : 'REGISTER_ACK', 0x02 : 'REGISTER_NACK',\
-        0x03 : 'REGISTER_REJ', 0x09 : 'ERROR', 0x10 : 'ALIVE_INF', 0x11 : 'ALIVE_ACK',\
-        0x12 : 'ALIVE_NACK', 0x13 : 'ALIVE_REJ'}
+    dicc_tipus = {0x00: 'REGISTER_REQ', 0x01: 'REGISTER_ACK', 0x02: 'REGISTER_NACK', 0x03: 'REGISTER_REJ', 0x09: 'ERROR', 0x10: 'ALIVE_INF', 0x11: 'ALIVE_ACK', 0x12: 'ALIVE_NACK', 0x13: 'ALIVE_REJ'}
     return dicc_tipus[tipus]
+
+
+def to_int_tipus(str):
+    dicc_tipus = {'REGISTER_REQ': 0x00, 'REGISTER_ACK': 0x01, 'REGISTER_NACK': 0x02, 'REGISTER_REJ': 0x03, 'ERROR': 0x09, 'ALIVE_INF': 0x10, 'ALIVE_ACK': 0x11, 'ALIVE_NACK': 0x12, 'ALIVE_REG': 0x13}
+    return dicc_tipus[str]

@@ -30,11 +30,11 @@ def print_with_time(cadena):
 def to_str_dades_udp(dades):
     """ to_str_dades_udp """
     return 'bytes=' + str(len(dades)) + ', tipus=' + str(to_str_tipus(dades[0])) + ', nom=' + \
-        dades[1:7] + ', mac=' + dades[8:20] + ', alea=' + dades[21:26] + ', dades=' + dades[27:]
+        dades[1:7] + ', mac=' + dades[8:20] + ', alea=' + dades[21:27] + ', dades=' + dades[27:]
 
 
-def create_rej_pack(data):
-    """ create_rej_pack """
+def create_empty_pack(type, data):
+    """ create_rej_pack    """
     camps = ['', '', '', '']
     llargada_camps = (7, 13, 7, 50)
     index_camps = 0
@@ -46,27 +46,9 @@ def create_rej_pack(data):
 
 def enviar_paquet_udp_rej(sock, address, data):
     """ enviar_paquet_udp_rej """
-    pack = create_rej_pack(data)
+    pack = create_empty_pack(0x00, data)
     print_if_debug(DEBUG, 'Enviat ' + to_str_dades_udp(pack))
     sock.sendto(pack, address)
-
-
-def is_client_allowed(paquet, equips, address):
-    """ is_client_allowed """
-    equip_trobat = -1
-    index = 0
-    for equip in equips:
-        if equip['nom'].__eq__(paquet[1:6]) and equip['mac'].__eq__(paquet[8:20]):
-            equip_trobat = equips[index]
-            if equip['estat'] == 'DISCONNECTED':
-                print_with_time('MSG.  => Acceptat registre. Equip: nom=' + equip['nom'] +\
-                     ', ip=' + address[0] + ', mac=' + equip['mac'] + ', alea=' + paquet[21:26])
-                equip['estat'] = 'REGISTERED'
-                return True
-        index += 1
-    if equip_trobat != -1:
-        equip_trobat['estat'] = 'DISCONNECTED'
-    return False
 
 
 def enviar_paquet_ack(sock, address, dades_serv):
@@ -85,18 +67,49 @@ def enviar_paquet_ack(sock, address, dades_serv):
 def enviar_paquet_err(sock, address):
     data = struct.pack('c7s13s7s50s', chr(0x09))
 
+
+def enviar_paquet_nack(sock, address, dades):
+    pack = create_empty_pack(0x02, dades)
+    print_if_debug(DEBUG, 'Enviat ' + to_str_dades_udp(pack))
+    sock.sendto(pack, address)
+
+
+def confirmacio_registre(data, sock, address, equips, dades_servidor):
+    autoritzat = False
+
+    for equip in equips:
+        if equip['nom'].__eq__(data[1:6]) and equip['mac'].__eq__(data[8:20]):
+            autoritzat = True
+            if data[21:27].__eq__('000000'):
+                if equip['estat'].__eq__('DISCONNECTED'):
+                    equip['estat'] = 'REGISTERED'
+                    equip['address'] = address
+                    acceptat = True
+                    print_if_debug(DEBUG,
+                        'Acceptat registre. Equip: nom=' + equip['nom'] + ', ip=' + address[0] + ', mac=' +
+                        equip['mac'] + ', alea=' + data[21:27])
+                    print_with_time('MSG.  => Equip ' + data[1:6] + ' passa a estat ' + equip['estat'])
+                    enviar_paquet_ack(sock, address, dades_servidor)
+                elif not equip['address'].__eq__(address):
+                    enviar_paquet_nack(sock, address, 'Discrepancies amb IP')
+                else:
+                    print_with_time(
+                        'MSG.  => Acceptat registre. Equip: nom=' + equip['nom'] + ', ip=' + address[0] + ', mac=' +
+                        equip['mac'] + ', alea=' + data[21:27])
+                    enviar_paquet_ack(sock, address, dades_servidor)
+            else:
+                enviar_paquet_nack(sock, address, 'Discrepancies amb el nombre aleatori')
+    if not autoritzat:
+        enviar_paquet_udp_rej(sock, address, 'Equip no autoritzat en el sistema')
+
+
 def tractar_dades_udp(data, sock, address, equips, dades_servidor):
     """ fadsfa """
 
-    if ord(data[0]) == 0x00 and is_client_allowed(data, equips, address):
-        enviar_paquet_ack(sock, address, dades_servidor)
-
-    elif ord(data[0]) == 0x00 and not is_client_allowed(data, equips, address):
-        for equip in equips:
-            if equip['mac'].__eq__(data[8:20]):
-                equip['estat'] = 'DISCONNECTED'
-        enviar_paquet_udp_rej(sock, address, 'Equip no autoritzat en el sistema.')
-
+    if ord(data[0]) == 0x00:
+        confirmacio_registre(data, sock, address, equips, dades_servidor)
+    elif ord(data[0]) == 0x10:
+        pass
     else:
         enviar_paquet_err(sock, address)
 
@@ -110,7 +123,7 @@ def udp(dades, equips):
     def signal_handler(sign, frame):
         """ signal_handler """
         if sign == signal.SIGINT:
-            print('You\'ve pressed ^C: ' + str(frame))
+            print('\nHas premut ^C.')
             sock.close()
             sys.exit()
 
