@@ -344,7 +344,7 @@ void espera_comandes_consola(int debug, int pipe_comandes[2], int pid)
 	int a;
 	int fd;
 	fd_set writefds;
-	
+		
 	print_if_debug(debug, "Creat el procés fill");
 	print_if_debug(debug, "El procés pare començarà a llegir comandes per consola.");
 
