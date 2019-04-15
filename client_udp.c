@@ -89,6 +89,8 @@ void recorregut_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr
 	tors.numIntents = 1;
 	tors.q = Q;
 
+	sprintf(aleatori, "000000");
+
 	print_if_debug(debug, "Inici bucle de servei equip: %s", paquet.equip);
 	print_with_time("MSG.  => Equip passa a l'estat DISCONNECTED");
 
@@ -213,7 +215,7 @@ struct paquet_udp read_feedback(int debug, int fd, int t)
 	a = select(fd+1, &readfds, NULL,NULL, &timev);
 	if( a < 0 )
 	{
-		print_with_time("ERROR => select.\n");
+		print_with_time("ERROR => Select en rebre paquet.\n");
 		paquet.type = 0x09;
 		return paquet;
 	} else if(FD_ISSET(fd, &readfds))
@@ -310,9 +312,9 @@ void comunicacio_periodica(int debug, int fd, struct paquet_udp paquet, struct s
                 print_if_debug(debug, "Rebut paquet REGISTER_ACK");
                 print_with_time("MSG.  => Equip passa a l'estat REGISTERED");
                 print_with_time("INFO  => Acceptada subscripció amb servidor: (nom:%s, mac:%s, alea:%s, port tcp:%s)",paquet_recv.equip, paquet_recv.mac, paquet_recv.random_number, paquet_recv.dades);
-                comunicacio_periodica(debug, fd, paquet_recv, addr_serv, c, s);
-                stop = 1;
-                break;
+                strcpy(paquet.random_number, paquet_recv.random_number);
+				primer_alive = 0;
+				break;
 			default:
 				print_with_time("ERROR => Rebut paquet no disponible. Intentem tornar a fer el registre.");
 				stop=1;
@@ -353,7 +355,7 @@ void espera_comandes_consola(int debug, int pipe_comandes[2], int pid)
 		a = select(fd+1, NULL, &writefds,NULL, NULL);
 		if( a < 0 )
 		{
-			print_with_time("ERROR => select.\n");
+			print_with_time("ERROR => Select que espera que es pugui enviar informació al procés fill.\n");
 		} else if(FD_ISSET(fd, &writefds)){
 			memset(comanda,'\0',sizeof(comanda));
 			read(0, comanda, sizeof(comanda));
@@ -387,7 +389,7 @@ int comanda(int debug, int pipe_comandes[2]){
 	a = select(fd +1, &readfds, NULL, NULL, &timev);
 	if( a < 0 )
 	{
-		print_with_time("ERROR => select.\n");
+		print_with_time("ERROR => Select que llegeix del procés pare les comandes.\n");
 		exit(-1);
 	} else if(FD_ISSET(fd, &readfds)){
 		read(pipe_comandes[0], comanda, sizeof(comanda));
