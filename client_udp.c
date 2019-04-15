@@ -86,8 +86,33 @@ void recorregut_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr
 	struct temporitzadors tors;
 	int nack = 0;
 	char aleatori[7];
+	int pid;
+	int pipe_comandes[2];
+
 	tors.numIntents = 1;
 	tors.q = Q;
+
+
+	if(pipe(pipe_comandes) == -1)
+	{
+		print_with_time("ERROR => No s'ha pogut crear el pipe per passar dades entre processos");
+		exit(-1);
+	}
+
+	pid = fork();
+	if(pid == -1)
+	{
+		print_with_time("ERROR => No s'ha pogut crear el procés fill per espera de comandes.");
+		exit(-1);
+	} else if(pid == 0)
+	{
+		close(0);
+		close(pipe_comandes[1]);
+	} else
+	{
+		close(pipe_comandes[0]);
+		espera_comandes_consola(debug, pipe_comandes, pid);
+	}
 
 	sprintf(aleatori, "000000");
 
@@ -103,7 +128,7 @@ void recorregut_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr
 		while(!nack && tors.n > 0)
 		{
 			print_if_debug(debug, "Registre equip. Intent: %i", tors.numIntents);
-			peticio_registre(debug, fd, paquet, addr_serv, tors.t, &nack, c, s, aleatori);
+			peticio_registre(debug, fd, paquet, addr_serv, tors.t, &nack, c, s, aleatori, pipe_comandes);
 			paquet = escriure_paquet(0x00, c, aleatori);
 			tors.numIntents++;
 			tors.n--;
@@ -113,7 +138,7 @@ void recorregut_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr
 		{
 			tors.t += T;
 			print_if_debug(debug, "Registre equip. Intent %i.", tors.numIntents);
-			peticio_registre(debug, fd, paquet, addr_serv, tors.t, &nack, c, s, aleatori);
+			peticio_registre(debug, fd, paquet, addr_serv, tors.t, &nack, c, s, aleatori, pipe_comandes);
 			paquet = escriure_paquet(0x00, c, aleatori);
 			tors.numIntents++;
 			tors.p--;
@@ -122,7 +147,7 @@ void recorregut_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr
 		while(!nack && tors.p > 0)
 		{
 			print_if_debug(debug, "Registre equip. Intent %i", tors.numIntents);
-			peticio_registre(debug, fd, paquet, addr_serv, tors.t, &nack, c, s, aleatori);
+			peticio_registre(debug, fd, paquet, addr_serv, tors.t, &nack, c, s, aleatori, pipe_comandes);
 			paquet = escriure_paquet(0x00, c, aleatori);
 			tors.numIntents++;
 			tors.p--;
@@ -143,7 +168,7 @@ void recorregut_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr
  * -----------------
  * Envia el paquet de registre i mira si reb confirmació
  */
-void peticio_registre(int debug, int fd, struct paquet_udp paquet, struct sockaddr_in addr_serv, int t, int *nack, struct client c, struct server s, char aleatori[])
+void peticio_registre(int debug, int fd, struct paquet_udp paquet, struct sockaddr_in addr_serv, int t, int *nack, struct client c, struct server s, char aleatori[], int pipe_comandes[])
 {
 	sendto_udp(fd, paquet, addr_serv);
 
@@ -166,7 +191,7 @@ void peticio_registre(int debug, int fd, struct paquet_udp paquet, struct sockad
 			print_if_debug(debug, "Rebut paquet REGISTER_ACK");
 			print_with_time("MSG.  => Equip passa a l'estat REGISTERED");
 			print_with_time("INFO  => Acceptada subscripció amb servidor: (nom:%s, mac:%s, alea:%s, port tcp:%s)",paquet.equip, paquet.mac, paquet.random_number, paquet.dades);
-			comunicacio_periodica(debug, fd, paquet, addr_serv, c, s);
+			comunicacio_periodica(debug, fd, paquet, addr_serv, c, s, pipe_comandes);
 			strcpy(aleatori, paquet.random_number);
 			break;
 		default:
@@ -233,7 +258,7 @@ struct paquet_udp read_feedback(int debug, int fd, int t)
 	return paquet;
 }
 
-void comunicacio_periodica(int debug, int fd, struct paquet_udp paquet, struct sockaddr_in addr_serv, struct client c, struct server s)
+void comunicacio_periodica(int debug, int fd, struct paquet_udp paquet, struct sockaddr_in addr_serv, struct client c, struct server s, int pipe_comandes[])
 {
 	int stop;
 	int primer_alive;
@@ -241,8 +266,6 @@ void comunicacio_periodica(int debug, int fd, struct paquet_udp paquet, struct s
 	struct paquet_udp alive;
 	struct paquet_udp paquet_recv;
 	struct info_serv info_server;
-	int pid;
-	int pipe_comandes[2];
 
 	print_if_debug(debug, "Començant la comunicació periòdica.");
 	memset(&info_server, 0, sizeof(info_server));
@@ -250,28 +273,6 @@ void comunicacio_periodica(int debug, int fd, struct paquet_udp paquet, struct s
 	strcpy(info_server.ip, s.server);
 	strcpy(info_server.mac, paquet.mac);
 	strcpy(info_server.aleatori, paquet.random_number);
-
-	if(pipe(pipe_comandes) == -1)
-	{
-		print_with_time("ERROR => No s'ha pogut crear el pipe per passar dades entre processos");
-		exit(-1);
-	}
-
-	pid = fork();
-	if(pid == -1)
-	{
-		print_with_time("ERROR => No s'ha pogut crear el procés fill per espera de comandes.");
-		exit(-1);
-	} else if(pid == 0)
-	{
-		close(0);
-		close(pipe_comandes[1]);
-	} else
-	{
-		close(pipe_comandes[0]);
-		close(1);
-		espera_comandes_consola(debug, pipe_comandes, pid);
-	}
 
 	stop = 0;
 	count_no_alive_ack = 0;
@@ -343,6 +344,9 @@ void espera_comandes_consola(int debug, int pipe_comandes[2], int pid)
 	int a;
 	int fd;
 	fd_set writefds;
+	
+	print_if_debug(debug, "Creat el procés fill");
+	print_if_debug(debug, "El procés pare començarà a llegir comandes per consola.");
 
 	fd = pipe_comandes[1];
 
@@ -352,7 +356,7 @@ void espera_comandes_consola(int debug, int pipe_comandes[2], int pid)
 	quit = 0;
 	while(!quit)
 	{
-		a = select(fd+1, NULL, &writefds,NULL, NULL);
+		a = select(fd+1, NULL, &writefds, NULL, NULL);
 		if( a < 0 )
 		{
 			print_with_time("ERROR => Select que espera que es pugui enviar informació al procés fill.\n");
@@ -364,7 +368,7 @@ void espera_comandes_consola(int debug, int pipe_comandes[2], int pid)
 			if(strcmp("quit\n", comanda) == 0)
 			{
 				quit = 1;
-				sleep(1);
+				sleep(3);
 			}
 		}
 	}
