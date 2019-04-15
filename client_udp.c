@@ -25,8 +25,6 @@
 #define R 3
 #define U 3
 
-/* TODO: en estat registered o alive, si rep REGISTER_ACK, es queda a REGISTERED */
-
 /*
  * Funció: connexio_UDP
  * -----------------
@@ -87,6 +85,7 @@ void recorregut_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr
 {
 	struct temporitzadors tors;
 	int nack = 0;
+	char aleatori[7];
 	tors.numIntents = 1;
 	tors.q = Q;
 
@@ -102,7 +101,8 @@ void recorregut_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr
 		while(!nack && tors.n > 0)
 		{
 			print_if_debug(debug, "Registre equip. Intent: %i", tors.numIntents);
-			peticio_registre(debug, fd, paquet, addr_serv, tors.t, &nack, c, s);
+			peticio_registre(debug, fd, paquet, addr_serv, tors.t, &nack, c, s, aleatori);
+			paquet = escriure_paquet(0x00, c, aleatori);
 			tors.numIntents++;
 			tors.n--;
 			tors.p--;
@@ -111,7 +111,8 @@ void recorregut_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr
 		{
 			tors.t += T;
 			print_if_debug(debug, "Registre equip. Intent %i.", tors.numIntents);
-			peticio_registre(debug, fd, paquet, addr_serv, tors.t, &nack, c, s);
+			peticio_registre(debug, fd, paquet, addr_serv, tors.t, &nack, c, s, aleatori);
+			paquet = escriure_paquet(0x00, c, aleatori);
 			tors.numIntents++;
 			tors.p--;
 		}
@@ -119,7 +120,8 @@ void recorregut_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr
 		while(!nack && tors.p > 0)
 		{
 			print_if_debug(debug, "Registre equip. Intent %i", tors.numIntents);
-			peticio_registre(debug, fd, paquet, addr_serv, tors.t, &nack, c, s);
+			peticio_registre(debug, fd, paquet, addr_serv, tors.t, &nack, c, s, aleatori);
+			paquet = escriure_paquet(0x00, c, aleatori);
 			tors.numIntents++;
 			tors.p--;
 		}
@@ -139,7 +141,7 @@ void recorregut_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr
  * -----------------
  * Envia el paquet de registre i mira si reb confirmació
  */
-void peticio_registre(int debug, int fd, struct paquet_udp paquet, struct sockaddr_in addr_serv, int t, int *nack, struct client c, struct server s)
+void peticio_registre(int debug, int fd, struct paquet_udp paquet, struct sockaddr_in addr_serv, int t, int *nack, struct client c, struct server s, char aleatori[])
 {
 	sendto_udp(fd, paquet, addr_serv);
 
@@ -163,6 +165,7 @@ void peticio_registre(int debug, int fd, struct paquet_udp paquet, struct sockad
 			print_with_time("MSG.  => Equip passa a l'estat REGISTERED");
 			print_with_time("INFO  => Acceptada subscripció amb servidor: (nom:%s, mac:%s, alea:%s, port tcp:%s)",paquet.equip, paquet.mac, paquet.random_number, paquet.dades);
 			comunicacio_periodica(debug, fd, paquet, addr_serv, c, s);
+			strcpy(aleatori, paquet.random_number);
 			break;
 		default:
 			break;

@@ -29,7 +29,7 @@ void configuracio_software(struct args *args, struct server *s, struct client *c
 void connexio_UDP(int debug, struct server s, struct client c);
 struct sockaddr_in addr_servidor(struct server s);
 void recorregut_udp(int debug, int fd, struct paquet_udp p, struct sockaddr_in addr_serv, struct client c, struct server s);
-void peticio_registre(int debug, int fd, struct paquet_udp p, struct sockaddr_in addr_serv, int t, int *nack, struct client c, struct server s);
+void peticio_registre(int debug, int fd, struct paquet_udp p, struct sockaddr_in addr_serv, int t, int *nack, struct client c, struct server s, char aleatori_num[]);
 struct paquet_udp read_feedback(int debug, int fd, int t);
 void sendto_udp(int fd, struct paquet_udp paquet,struct sockaddr_in addr_serv);
 void comunicacio_periodica(int debug, int fd, struct paquet_udp paquet, struct sockaddr_in addr_serv, struct client c, struct server s);
