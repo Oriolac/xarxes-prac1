@@ -13,7 +13,6 @@
 #include <signal.h>
 
 #include <unistd.h>
-#include <pthread.h>
 
 #include "client_funcions.h"
 
@@ -194,9 +193,9 @@ void sendto_udp(int fd, struct paquet_udp paquet,struct sockaddr_in addr_serv)
  */
 struct paquet_udp read_feedback(int debug, int fd, int t)
 {
+	struct paquet_udp paquet;
 	int a;
 	fd_set readfds;
-	struct paquet_udp paquet;
 	struct timeval timev;
 
 	memset(&paquet, 0, sizeof(paquet));
@@ -237,6 +236,8 @@ void comunicacio_periodica(int debug, int fd, struct paquet_udp paquet, struct s
 	struct paquet_udp alive;
 	struct paquet_udp paquet_recv;
 	struct info_serv info_server;
+	int pid;
+	int pipe_comandes[2];
 
 	print_if_debug(debug, "Començant la comunicació periòdica.");
 	memset(&info_server, 0, sizeof(info_server));
@@ -244,6 +245,28 @@ void comunicacio_periodica(int debug, int fd, struct paquet_udp paquet, struct s
 	strcpy(info_server.ip, s.server);
 	strcpy(info_server.mac, paquet.mac);
 	strcpy(info_server.aleatori, paquet.random_number);
+
+	if(pipe(pipe_comandes) == -1)
+	{
+		print_with_time("ERROR => No s'ha pogut crear el pipe per passar dades entre processos");
+		exit(-1);
+	}
+
+	pid = fork();
+	if(pid == -1)
+	{
+		print_with_time("ERROR => No s'ha pogut crear el procés fill per espera de comandes.");
+		exit(-1);
+	} else if(pid == 0)
+	{
+		close(0);
+		close(pipe_comandes[1]);
+	} else
+	{
+		close(pipe_comandes[0]);
+		close(1);
+		espera_comandes_consola(debug, pipe_comandes, pid);
+	}
 
 	stop = 0;
 	count_no_alive_ack = 0;
@@ -292,9 +315,90 @@ void comunicacio_periodica(int debug, int fd, struct paquet_udp paquet, struct s
 				stop=1;
 				break;
 		}
+
+		switch (comanda(debug, pipe_comandes))
+		{
+			case 1:
+				close(fd);
+				exit(1);
+				break;
+			default:
+				break;
+		}
+
 	}
 	print_if_debug(debug, "Marxem de la comunicació periòdica");
 }
+
+void espera_comandes_consola(int debug, int pipe_comandes[2], int pid)
+{
+	char comanda[20];
+	int quit;
+
+	int a;
+	int fd;
+	fd_set writefds;
+
+	fd = pipe_comandes[1];
+
+	FD_ZERO(&writefds);
+	FD_SET(fd, &writefds);
+
+	quit = 0;
+	while(!quit)
+	{
+		a = select(fd+1, NULL, &writefds,NULL, NULL);
+		if( a < 0 )
+		{
+			print_with_time("ERROR => select.\n");
+		} else if(FD_ISSET(fd, &writefds)){
+			memset(comanda,'\0',sizeof(comanda));
+			read(0, comanda, sizeof(comanda));
+			sprintf(comanda, "%s", comanda);
+			write(pipe_comandes[1], comanda, sizeof(comanda));
+			if(strcmp("quit\n", comanda) == 0)
+			{
+				quit = 1;
+				sleep(1);
+			}
+		}
+	}
+	exit(1);
+}
+
+
+int comanda(int debug, int pipe_comandes[2]){
+	char comanda[20];
+	int a;
+	int fd;
+	fd_set readfds;
+	struct timeval timev;
+
+	fd= pipe_comandes[0];
+
+	timev.tv_sec = 0;
+	timev.tv_usec = 10;
+
+	FD_ZERO(&readfds);
+	FD_SET(fd, &readfds);
+	a = select(fd +1, &readfds, NULL, NULL, &timev);
+	if( a < 0 )
+	{
+		print_with_time("ERROR => select.\n");
+		exit(-1);
+	} else if(FD_ISSET(fd, &readfds)){
+		read(pipe_comandes[0], comanda, sizeof(comanda));
+		if(strcmp(comanda, "quit\n") == 0)
+		{
+			print_if_debug(debug, "S'ha executat la comanda 'quit'.");
+			print_if_debug(debug, "Finalitzat procés per gestionar alives.");
+			return 1;
+		}
+	}
+	return 0;
+}
+
+
 
 
 
