@@ -79,8 +79,7 @@ def enviar_paquet_ack(sock, address, dades_serv, equip):
         import random
         return str(random.randint(0, 1000000))
 
-    if equip['aleatori'].__eq__(str(000000)):
-        equip['aleatori'] = num_aleatori()
+    equip['aleatori'] = num_aleatori()
     data = struct.pack('c7s13s7s50s', chr(0x01), dades_serv['Nom'], dades_serv['MAC'], equip['aleatori'],
                        dades_serv['TCP-port'])
     print_if_debug(DEBUG, 'Enviat ' + to_str_dades_udp(data))

@@ -71,7 +71,6 @@ def dades_equip(line):
     dades['nom'] = line[0]
     dades['mac'] = line[1]
     dades['estat'] = 'DISCONNECTED'
-    dades['aleatori'] = str(000000)
     return dades
 
 
