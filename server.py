@@ -92,7 +92,9 @@ def enviar_reg_ack(sock, address, dades_serv, equip):
 
 
 def enviar_paquet_err(sock, address):
-    data = struct.pack('c7s13s7s50s', chr(0x09))
+    data = struct.pack('c7s13s7s50s', chr(0x09), '', '', '', '')
+    print_if_debug(DEBUG, 'Enviat ' + to_str_dades_udp(data))
+    sock.sendto(data, address)
 
 
 def enviar_reg_nack(sock, address, dades):
