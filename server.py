@@ -41,7 +41,7 @@ def comandes_consola(DEBUG, EQUIPS, quit, pid):
     while not quit:
         comanda = raw_input('')
         if comanda.__eq__('quit'):
-            os.kill(pid, signal.SIGUSR1)
+            os.kill(pid, signal.SIGINT)
             quit = True
         elif comanda.__eq__('list'):
             print('-NOM--\t------IP-------\t-----MAC-----\t-ALEA-\t----ESTAT----')
@@ -79,7 +79,7 @@ def enviar_paquet_ack(sock, address, dades_serv, equip):
         import random
         return str(random.randint(0, 1000000))
 
-    if equip['aleatori'].__eq__(str(000000)):
+    if equip['aleatori'].__eq__('000000'):
         equip['aleatori'] = num_aleatori()
     data = struct.pack('c7s13s7s50s', chr(0x01), dades_serv['Nom'], dades_serv['MAC'], equip['aleatori'],
                        dades_serv['TCP-port'])
@@ -101,7 +101,7 @@ def confirmacio_registre(data, sock, address, equips, dades_servidor):
 
     for equip in equips:
         if equip['nom'].__eq__(data[1:6]) and equip['mac'].__eq__(data[8:20]):
-            if data[21:27].__eq__('000000') or not equip['estat'].__eq__('DISCONNECTED'):
+            if data[21:27].__eq__(equip['aleatori']) or not equip['estat'].__eq__('DISCONNECTED'):
                 if equip['estat'].__eq__('DISCONNECTED'):
                     equip['estat'] = 'REGISTERED'
                     equip['address'] = address
@@ -110,27 +110,29 @@ def confirmacio_registre(data, sock, address, equips, dades_servidor):
                         equip['mac'] + ', alea=' + data[21:27])
                     print_with_time('MSG.  => Equip ' + data[1:6] + ' passa a estat ' + equip['estat'])
                     enviar_paquet_ack(sock, address, dades_servidor, equip)
-                    return True
+                    return True, equip
                 elif not equip['address'].__eq__(address):
                     enviar_paquet_nack(sock, address, 'Discrepancies amb IP')
-                    return False
+                    return False, equip
                 else:
                     enviar_paquet_ack(sock, address, dades_servidor, equip)
-                    return True
+                    return True, equip
             else:
                 enviar_paquet_nack(sock, address, 'Discrepancies amb el nombre aleatori')
-                return False
+                return False, equip
 
     enviar_paquet_udp_rej(sock, address, 'Equip no autoritzat en el sistema')
-    return True
+    return True, None
 
 
 def tractar_dades_udp(data, sock, address, equips, dades_servidor):
     """ fadsfa """
 
     if ord(data[0]) == 0x00:
-        if confirmacio_registre(data, sock, address, equips, dades_servidor):
-            print_if_debug(DEBUG, 'Sha de fer el fork per ')
+        confirmacio, equip = confirmacio_registre(data, sock, address, equips, dades_servidor)
+        if confirmacio:
+            print_if_debug(DEBUG, 'Contador ALIVES = 0')
+            equip['cont_alives'] = 0
     elif ord(data[0]) == 0x10:
         pass
     else:
@@ -143,16 +145,44 @@ def udp(dades, equips, quit_command):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     print_if_debug(DEBUG, 'S\'ha creat el socket UDP')
 
-    def signal_handler(sign, frame):
+    def quit_handler(sign, frame):
         """ signal_handler """
-        if sign == signal.SIGUSR1:
+        if sign == signal.SIGINT:
+            global quit_command
             print_if_debug(DEBUG, 'S\'ha executat la comanda \'quit\'. Finalitzat servidor.')
+            quit_command = True
             sock.close()
             sys.exit()
 
-    signal.signal(signal.SIGUSR1, signal_handler)
+    def manteniment_alives():
+        global DEBUG, EQUIPS, quit_command
+        j_intervals = 2
+        k_intervals = 3
+        temps_r = 3
+        print_if_debug(DEBUG, 'Establert temporitzador pel control d\'alives')
+        while not quit_command:
+            time.sleep(temps_r)
+            for equip in EQUIPS:
+                if not equip['estat'].__eq__('DISCONNECTED'):
+                    equip['cont_alives'] += 1
+
+                if equip['estat'].__eq__('REGISTERED') and equip['cont_alives'] > j_intervals:
+                    equip['estat'] = 'DISCONNECTED'
+                    print_with_time('L\'equip passa de REGISTERED a DISCONNECTED, no s\'ha rebut ' + str(
+                        j_intervals) + ' ALIVE_INF')
+                elif equip['estat'].__eq__('ALIVE') and equip['cont_alives'] > k_intervals:
+                    equip['estat'] = 'DISCONNECTED'
+                    print_with_time('L\'equip passa d\'ALIVE a DISCONNECTED, no s\'ha rebut ' + str(
+                        j_intervals) + ' ALIVE_INF')
+
+        print_if_debug(DEBUG, 'S\'ha tancat fil per manteniment d\'ALIVES')
+
+    control_alives = threading.Thread(target=manteniment_alives)
+    control_alives.start()
+    signal.signal(signal.SIGINT, quit_handler)
     sock.bind(('', int(DADES['UDP-port'])))
     print_if_debug(DEBUG, 'Assignat el socket al port: ' + DADES['UDP-port'])
+
     while not quit_command:
         buff, address = sock.recvfrom(78)
         print_if_debug(DEBUG, 'Rebut ' + to_str_dades_udp(buff))

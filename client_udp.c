@@ -368,7 +368,7 @@ void espera_comandes_consola(int debug, int pipe_comandes[2], int pid)
 			if(strcmp("quit\n", comanda) == 0)
 			{
 				quit = 1;
-				sleep(3);
+				sleep(1);
 			}
 		}
 	}
