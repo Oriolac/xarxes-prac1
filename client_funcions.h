@@ -32,7 +32,7 @@ void recorregut_udp(int debug, int fd, struct paquet_udp p, struct sockaddr_in a
 void peticio_registre(int debug, int fd, struct paquet_udp p, struct sockaddr_in addr_serv, int t, int *nack, struct client c, struct server s, char aleatori_num[], int pipe_comandes[]);
 struct paquet_udp read_feedback(int debug, int fd, int t);
 void sendto_udp(int fd, struct paquet_udp paquet,struct sockaddr_in addr_serv);
-void comunicacio_periodica(int debug, int fd, struct paquet_udp paquet, struct sockaddr_in addr_serv, struct client c, struct server s, int pipe_comandes[]);
+void comunicacio_periodica(int debug, int fd, struct paquet_udp paquet, struct sockaddr_in addr_serv, struct client c, struct server s, int pipe_comandes[], int *nack);
 void espera_comandes_consola(int debug, int pipe_comandes[2], int pid);
 int comanda(int debug, int pipe_comandes[2]);
 int comprovacio_alive_ack(int debug,struct paquet_udp paquet1,struct paquet_udp paquet2, int count);

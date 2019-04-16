@@ -114,13 +114,13 @@ void recorregut_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr
 		espera_comandes_consola(debug, pipe_comandes, pid);
 	}
 
-	sprintf(aleatori, "000000");
 
 	print_if_debug(debug, "Inici bucle de servei equip: %s", paquet.equip);
 	print_with_time("MSG.  => Equip passa a l'estat DISCONNECTED");
 
 	while(tors.q > 0)
 	{
+		sprintf(aleatori, "000000");
 		tors.n = N;
 		tors.t = T;
 		tors.p = P;
@@ -128,8 +128,8 @@ void recorregut_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr
 		while(!nack && tors.n > 0)
 		{
 			print_if_debug(debug, "Registre equip. Intent: %i", tors.numIntents);
-			peticio_registre(debug, fd, paquet, addr_serv, tors.t, &nack, c, s, aleatori, pipe_comandes);
 			paquet = escriure_paquet(0x00, c, aleatori);
+			peticio_registre(debug, fd, paquet, addr_serv, tors.t, &nack, c, s, aleatori, pipe_comandes);
 			tors.numIntents++;
 			tors.n--;
 			tors.p--;
@@ -138,8 +138,8 @@ void recorregut_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr
 		{
 			tors.t += T;
 			print_if_debug(debug, "Registre equip. Intent %i.", tors.numIntents);
-			peticio_registre(debug, fd, paquet, addr_serv, tors.t, &nack, c, s, aleatori, pipe_comandes);
 			paquet = escriure_paquet(0x00, c, aleatori);
+			peticio_registre(debug, fd, paquet, addr_serv, tors.t, &nack, c, s, aleatori, pipe_comandes);
 			tors.numIntents++;
 			tors.p--;
 		}
@@ -147,8 +147,8 @@ void recorregut_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr
 		while(!nack && tors.p > 0)
 		{
 			print_if_debug(debug, "Registre equip. Intent %i", tors.numIntents);
-			peticio_registre(debug, fd, paquet, addr_serv, tors.t, &nack, c, s, aleatori, pipe_comandes);
 			paquet = escriure_paquet(0x00, c, aleatori);
+			peticio_registre(debug, fd, paquet, addr_serv, tors.t, &nack, c, s, aleatori, pipe_comandes);
 			tors.numIntents++;
 			tors.p--;
 		}
@@ -191,7 +191,7 @@ void peticio_registre(int debug, int fd, struct paquet_udp paquet, struct sockad
 			print_if_debug(debug, "Rebut paquet REGISTER_ACK");
 			print_with_time("MSG.  => Equip passa a l'estat REGISTERED");
 			print_with_time("INFO  => Acceptada subscripció amb servidor: (nom:%s, mac:%s, alea:%s, port tcp:%s)",paquet.equip, paquet.mac, paquet.random_number, paquet.dades);
-			comunicacio_periodica(debug, fd, paquet, addr_serv, c, s, pipe_comandes);
+			comunicacio_periodica(debug, fd, paquet, addr_serv, c, s, pipe_comandes, nack);
 			strcpy(aleatori, paquet.random_number);
 			break;
 		default:
@@ -258,7 +258,7 @@ struct paquet_udp read_feedback(int debug, int fd, int t)
 	return paquet;
 }
 
-void comunicacio_periodica(int debug, int fd, struct paquet_udp paquet, struct sockaddr_in addr_serv, struct client c, struct server s, int pipe_comandes[])
+void comunicacio_periodica(int debug, int fd, struct paquet_udp paquet, struct sockaddr_in addr_serv, struct client c, struct server s, int pipe_comandes[], int *nack)
 {
 	int stop;
 	int primer_alive;
@@ -286,7 +286,7 @@ void comunicacio_periodica(int debug, int fd, struct paquet_udp paquet, struct s
 		paquet_recv = read_feedback(debug, fd, R);
 		switch (paquet_recv.type)
 		{
-			case 0x13:
+			case 0x12:
 				count_no_alive_ack++;
 				stop=control_stop(count_no_alive_ack);
 				break;
@@ -305,9 +305,10 @@ void comunicacio_periodica(int debug, int fd, struct paquet_udp paquet, struct s
 					stop = control_stop(count_no_alive_ack);
 				}
 				break;
-			case 0x12:
-				print_with_time("MSG.  => Equip passa a l'estat DISCONNECTED");
-				exit(-1);
+			case 0x13:
+				print_with_time("MSG.  => Equip passa a l'estat DISCONNECTED. Motiu: Suplantació identitat");
+				*nack = 1;
+				stop = 1;
 				break;
 		    case 0x01:
                 print_if_debug(debug, "Rebut paquet REGISTER_ACK");

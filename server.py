@@ -150,8 +150,9 @@ def enviar_alive_nack(sock, address, motiu):
 
 def control_manteniment_comunicacio(data, sock, address, equips, dades_serv):
     for equip in equips:
-        if equip['nom'].__eq__(data[1:6]) and equip['mac'].__eq__(data[8:20]) and equip['address'].__eq__(address) \
-                and equip['aleatori'].__eq__(data[21:27]):
+        if equip['nom'].__eq__(data[1:6]) and equip['mac'].__eq__(data[8:20]) and equip['estat'].__eq__('DISCONNECTED'):
+            enviar_alive_rej(sock, address, 'Equip no registrat al sistema.')
+        elif equip['nom'].__eq__(data[1:6]) and equip['mac'].__eq__(data[8:20]) and equip['aleatori'].__eq__(data[21:27]) and equip['address'].__eq__(address):
             if equip['estat'].__eq__('REGISTERED'):
                 equip['cont_alives'] = 0
                 equip['estat'] = 'ALIVE'
@@ -160,8 +161,6 @@ def control_manteniment_comunicacio(data, sock, address, equips, dades_serv):
             elif equip['estat'].__eq__('ALIVE'):
                 equip['cont_alives'] = 0
                 enviar_alive_ack(sock, address, dades_serv, equip)
-            else:
-                enviar_alive_rej(sock, address, 'Equip no registrat al sistema.')
         elif equip['nom'].__eq__(data[1:6]) and equip['mac'].__eq__(data[8:20]) and not equip['address'].__eq__(address) \
                 and equip['aleatori'].__eq__(data[21:27]):
             enviar_alive_nack(sock, address, 'Discrepancies amb IP address')
@@ -213,10 +212,12 @@ def udp(dades, equips, quit_command):
 
                 if equip['estat'].__eq__('REGISTERED') and equip['cont_alives'] > j_intervals:
                     equip['estat'] = 'DISCONNECTED'
+                    equip['aleatori'] = '000000'
                     print_with_time('MSG.  => L\'equip ' + equip['nom'] + ' passa de REGISTERED a DISCONNECTED')
                     print_if_debug(DEBUG, 'no s\'ha rebut ' + str(j_intervals) + ' ALIVE_INF')
                 elif equip['estat'].__eq__('ALIVE') and equip['cont_alives'] > k_intervals:
                     equip['estat'] = 'DISCONNECTED'
+                    equip['aleatori'] = '000000'
                     print_with_time('MSG.  => L\'equip ' + equip['nom'] + ' passa d\'ALIVE a DISCONNECTED')
                     print_if_debug(DEBUG, 'no s\'ha rebut ' + str(k_intervals) + ' ALIVE_INF')
         print_if_debug(DEBUG, 'S\'ha tancat fil per manteniment d\'ALIVES')
