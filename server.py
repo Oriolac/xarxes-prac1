@@ -12,6 +12,7 @@ import struct
 import threading
 import os
 
+
 def print_if_debug(debug, cadena):
     """print_if_debug"""
     if debug:
@@ -77,7 +78,10 @@ def enviar_reg_ack(sock, address, dades_serv, equip):
 
     def num_aleatori():
         import random
-        return str(random.randint(0, 1000000))
+        paraula = str(random.randint(0, 1000000))
+        while len(paraula) < 6:
+            paraula = '0' + paraula
+        return paraula
 
     if equip['aleatori'].__eq__('000000'):
         equip['aleatori'] = num_aleatori()
@@ -107,7 +111,7 @@ def confirmacio_registre(data, sock, address, equips, dades_servidor):
                     print_if_debug(DEBUG,
                         'Acceptat registre. Equip: nom=' + equip['nom'] + ', ip=' + address[0] + ', mac=' +
                         equip['mac'] + ', alea=' + data[21:27])
-                    print_with_time('MSG.  => Equip ' + data[1:6] + ' passa a estat ' + equip['estat'])
+                    print_with_time('MSG.  => L\'equip ' + data[1:6] + ' passa a estat ' + equip['estat'])
                     enviar_reg_ack(sock, address, dades_servidor, equip)
                     return True, equip
                 elif not equip['address'].__eq__(address):
@@ -149,7 +153,7 @@ def control_manteniment_comunicacio(data, sock, address, equips, dades_serv):
             if equip['estat'].__eq__('REGISTERED'):
                 equip['cont_alives'] = 0
                 equip['estat'] = 'ALIVE'
-                print_with_time(equip['nom'] + ' passa de REGISTERED a ALIVE.')
+                print_with_time('MSG.  => L\'equip ' + equip['nom'] + ' passa de REGISTERED a ALIVE.')
                 enviar_alive_ack(sock, address, dades_serv, equip)
             elif equip['estat'].__eq__('ALIVE'):
                 equip['cont_alives'] = 0
@@ -207,12 +211,12 @@ def udp(dades, equips, quit_command):
 
                 if equip['estat'].__eq__('REGISTERED') and equip['cont_alives'] > j_intervals:
                     equip['estat'] = 'DISCONNECTED'
-                    print_with_time('L\'equip passa de REGISTERED a DISCONNECTED, no s\'ha rebut ' + str(
-                        j_intervals) + ' ALIVE_INF')
+                    print_with_time('MSG.  => L\'equip ' + equip['nom'] + ' passa de REGISTERED a DISCONNECTED')
+                    print_if_debug(DEBUG, 'no s\'ha rebut ' + str(j_intervals) + ' ALIVE_INF')
                 elif equip['estat'].__eq__('ALIVE') and equip['cont_alives'] > k_intervals:
                     equip['estat'] = 'DISCONNECTED'
-                    print_with_time('L\'equip passa d\'ALIVE a DISCONNECTED, no s\'ha rebut ' + str(
-                        k_intervals) + ' ALIVE_INF')
+                    print_with_time('MSG.  => L\'equip ' + equip['nom'] + ' passa d\'ALIVE a DISCONNECTED')
+                    print_if_debug(DEBUG, 'no s\'ha rebut ' + str(k_intervals) + ' ALIVE_INF')
         print_if_debug(DEBUG, 'S\'ha tancat fil per manteniment d\'ALIVES')
 
     control_alives = threading.Thread(target=manteniment_alives)
