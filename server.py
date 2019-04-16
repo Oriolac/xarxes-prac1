@@ -65,14 +65,14 @@ def create_empty_pack(type, data):
     return struct.pack('c7s13s7s50s', chr(type), '', '', '', data)
 
 
-def enviar_paquet_udp_rej(sock, address, data):
+def enviar_reg_rej(sock, address, data):
     """ enviar_paquet_udp_rej """
-    pack = create_empty_pack(0x00, data)
+    pack = create_empty_pack(0x03, data)
     print_if_debug(DEBUG, 'Enviat ' + to_str_dades_udp(pack))
     sock.sendto(pack, address)
 
 
-def enviar_paquet_ack(sock, address, dades_serv, equip):
+def enviar_reg_ack(sock, address, dades_serv, equip):
     """ enviar_paquet_ack """
 
     def num_aleatori():
@@ -91,14 +91,13 @@ def enviar_paquet_err(sock, address):
     data = struct.pack('c7s13s7s50s', chr(0x09))
 
 
-def enviar_paquet_nack(sock, address, dades):
+def enviar_reg_nack(sock, address, dades):
     pack = create_empty_pack(0x02, dades)
     print_if_debug(DEBUG, 'Enviat ' + to_str_dades_udp(pack))
     sock.sendto(pack, address)
 
 
 def confirmacio_registre(data, sock, address, equips, dades_servidor):
-
     for equip in equips:
         if equip['nom'].__eq__(data[1:6]) and equip['mac'].__eq__(data[8:20]):
             if data[21:27].__eq__(equip['aleatori']) or not equip['estat'].__eq__('DISCONNECTED'):
@@ -109,20 +108,60 @@ def confirmacio_registre(data, sock, address, equips, dades_servidor):
                         'Acceptat registre. Equip: nom=' + equip['nom'] + ', ip=' + address[0] + ', mac=' +
                         equip['mac'] + ', alea=' + data[21:27])
                     print_with_time('MSG.  => Equip ' + data[1:6] + ' passa a estat ' + equip['estat'])
-                    enviar_paquet_ack(sock, address, dades_servidor, equip)
+                    enviar_reg_ack(sock, address, dades_servidor, equip)
                     return True, equip
                 elif not equip['address'].__eq__(address):
-                    enviar_paquet_nack(sock, address, 'Discrepancies amb IP')
+                    enviar_reg_nack(sock, address, 'Discrepancies amb IP')
                     return False, equip
                 else:
-                    enviar_paquet_ack(sock, address, dades_servidor, equip)
+                    enviar_reg_ack(sock, address, dades_servidor, equip)
                     return True, equip
             else:
-                enviar_paquet_nack(sock, address, 'Discrepancies amb el nombre aleatori')
+                enviar_reg_nack(sock, address, 'Discrepancies amb el nombre aleatori')
                 return False, equip
 
-    enviar_paquet_udp_rej(sock, address, 'Equip no autoritzat en el sistema')
-    return True, None
+    enviar_reg_rej(sock, address, 'Equip no autoritzat en el sistema.')
+    return False, None
+
+
+def enviar_alive_ack(sock, address, dades_serv, equip):
+    data = struct.pack('c7s13s7s50s', chr(0x11), dades_serv['Nom'], dades_serv['MAC'], equip['aleatori'], '')
+    print_if_debug(DEBUG, 'Enviat ' + to_str_dades_udp(data))
+    sock.sendto(data, address)
+
+
+def enviar_alive_rej(sock, address, motiu):
+    pack = create_empty_pack(0x13, motiu)
+    print_if_debug(DEBUG, 'Enviat ' + to_str_dades_udp(pack))
+    sock.sendto(pack, address)
+
+
+def enviar_alive_nack(sock, address, motiu):
+    pack = create_empty_pack(0x12, motiu)
+    print_if_debug(DEBUG, 'Enviat ' + to_str_dades_udp(pack))
+    sock.sendto(pack, address)
+
+
+def control_manteniment_comunicacio(data, sock, address, equips, dades_serv):
+    for equip in equips:
+        if equip['nom'].__eq__(data[1:6]) and equip['mac'].__eq__(data[8:20]) and equip['address'].__eq__(address) \
+                and equip['aleatori'].__eq__(data[21:27]):
+            if equip['estat'].__eq__('REGISTERED'):
+                equip['cont_alives'] = 0
+                equip['estat'] = 'ALIVE'
+                print_with_time(equip['nom'] + ' passa de REGISTERED a ALIVE.')
+                enviar_alive_ack(sock, address, dades_serv, equip)
+            elif equip['estat'].__eq__('ALIVE'):
+                equip['cont_alives'] = 0
+                enviar_alive_ack(sock, address, dades_serv, equip)
+            else:
+                enviar_alive_rej(sock, address, 'Equip no registrat al sistema.')
+        elif equip['nom'].__eq__(data[1:6]) and equip['mac'].__eq__(data[8:20]) and not equip['address'].__eq__(address) \
+                and equip['aleatori'].__eq__(data[21:27]):
+            enviar_alive_nack(sock, address, 'Discrepancies amb IP address')
+        elif equip['nom'].__eq__(data[1:6]) and equip['mac'].__eq__(data[8:20]) and equip['address'].__eq__(address) \
+                and not equip['aleatori'].__eq__(data[21:27]):
+            enviar_alive_nack(sock, address, 'Discrepancies amb el nombre aleatori')
 
 
 def tractar_dades_udp(data, sock, address, equips, dades_servidor):
@@ -134,7 +173,7 @@ def tractar_dades_udp(data, sock, address, equips, dades_servidor):
             print_if_debug(DEBUG, 'Contador ALIVES = 0')
             equip['cont_alives'] = 0
     elif ord(data[0]) == 0x10:
-        pass
+        control_manteniment_comunicacio(data, sock, address, equips, dades_servidor)
     else:
         enviar_paquet_err(sock, address)
 
@@ -173,8 +212,7 @@ def udp(dades, equips, quit_command):
                 elif equip['estat'].__eq__('ALIVE') and equip['cont_alives'] > k_intervals:
                     equip['estat'] = 'DISCONNECTED'
                     print_with_time('L\'equip passa d\'ALIVE a DISCONNECTED, no s\'ha rebut ' + str(
-                        j_intervals) + ' ALIVE_INF')
-
+                        k_intervals) + ' ALIVE_INF')
         print_if_debug(DEBUG, 'S\'ha tancat fil per manteniment d\'ALIVES')
 
     control_alives = threading.Thread(target=manteniment_alives)
