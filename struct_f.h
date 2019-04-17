@@ -4,8 +4,8 @@
 
 struct args
 {
-    FILE *fitxerSoft;
-    FILE *fitxerEquip;
+    FILE *fitxer_soft;
+    char fitxer_equip[10];
     int debug;
 };
 
@@ -19,7 +19,7 @@ struct t
 struct server
 {
     char server[20];
-    int serverPort;
+    int server_port;
 };
 struct client
 {
@@ -33,6 +33,15 @@ struct paquet_udp
     char mac[13];
     char random_number[7];
     char dades[50];
+};
+
+struct paquet_tcp
+{
+    unsigned char type;
+    char equip[7];
+    char mac[13];
+    char random_number[7];
+    char dades[150];
 };
 
 struct temporitzadors
@@ -49,4 +58,5 @@ struct info_serv
     char ip[10];
     char mac[13];
     char aleatori[7];
+    int port_tcp;
 };

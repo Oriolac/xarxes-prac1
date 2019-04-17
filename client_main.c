@@ -10,7 +10,7 @@ int main(int argc, char **argv)
 
 	lectura_parametres(argc, argv, &args);
 	configuracio_software(&args, &s, &c);
-	connexio_UDP(args.debug, s, c);
+	connexio_UDP(args.debug, s, c, args.fitxer_equip);
 
 	exit(0);
 }

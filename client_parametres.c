@@ -32,7 +32,7 @@ void lectura_parametres(int argc, char** argv, struct args *args)
 
 	/* Guardem tot allò per defecte. */
 	sprintf(arxiu_soft, "client.cfg");
-	sprintf(arxiu_equip, "boot.cfg");
+	sprintf(args->fitxer_equip, "boot.cfg");
     args->debug = 0;
 
 	/* Mira si existeixen paràmetres com el -d o -c */
@@ -54,10 +54,8 @@ void lectura_parametres(int argc, char** argv, struct args *args)
 	}
 	print_if_debug(args->debug, "Llegits paràmetres línia de comandes.");
 
-	args->fitxerSoft = obrir_arxius_config(arxiu_soft);
+	args->fitxer_soft = obrir_arxius_config(arxiu_soft);
 	print_if_debug(args->debug, "Obert arxiu de configuració de software.");
-	args->fitxerEquip = obrir_arxius_config(arxiu_equip);
-	print_if_debug(args->debug, "Obert arxiu de configuració de l'equip.");
 }
 
 /* 
@@ -86,7 +84,7 @@ void configuracio_software(struct args* args, struct server *s, struct client *c
 	char buf[20];
 	char buf2[20];
 
-	while(fscanf(args->fitxerSoft,"%s %s", buf, buf2) != EOF){
+	while(fscanf(args->fitxer_soft,"%s %s", buf, buf2) != EOF){
 		if(!strcmp(buf, "Nom")){
 			strcpy(c->equip,buf2);
 		} else if(!strcmp(buf, "MAC")){
@@ -94,9 +92,9 @@ void configuracio_software(struct args* args, struct server *s, struct client *c
 		} else if(!strcmp(buf, "Server")){
 			strcpy(s->server,buf2);
 		} else if(!strcmp(buf, "Server-port")){
-			s->serverPort=atoi(buf2);
+			s->server_port=atoi(buf2);
 		}
 	}
 	print_if_debug(args->debug, "El client és:\n\t\tNom: %s\n\t\tMAC: %s", c->equip, c->mac);
-	print_if_debug(args->debug,"El servidor té:\n\t\tAdreça: %s\n\t\tPort: %i", s->server, s->serverPort); 
+	print_if_debug(args->debug,"El servidor té:\n\t\tAdreça: %s\n\t\tPort: %i", s->server, s->server_port);
 }

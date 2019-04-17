@@ -30,7 +30,7 @@
  * -----------------
  * Crea el socket, agafa l'adreça del servidor i comença les peticions de registre.
  */
-void connexio_UDP(int debug, struct server s, struct client c)
+void connexio_UDP(int debug, struct server s, struct client c, char boot_file[])
 {
 	struct sockaddr_in addr_serv;
 	struct paquet_udp paquet;
@@ -49,7 +49,7 @@ void connexio_UDP(int debug, struct server s, struct client c)
 
 	paquet = escriure_paquet(0, c,"000000");
 	
-    recorregut_udp(debug, fd, paquet, addr_serv, c, s);
+    recorregut_udp(debug, fd, paquet, addr_serv, c, s, boot_file);
 }
 
 /*
@@ -71,7 +71,7 @@ struct sockaddr_in addr_servidor(struct server s)
 	memset(&addr_serv, 0, sizeof(struct sockaddr_in));
 	addr_serv.sin_family=AF_INET;
 	addr_serv.sin_addr.s_addr=((struct in_addr *) ent->h_addr_list[0])->s_addr;
-	addr_serv.sin_port=htons(s.serverPort);
+	addr_serv.sin_port=htons(s.server_port);
 
 	return addr_serv;
 }
@@ -81,7 +81,7 @@ struct sockaddr_in addr_servidor(struct server s)
  * -----------------
  * Realitza la temporització del registre
  */
-void recorregut_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr_in addr_serv, struct client c, struct server s)
+void recorregut_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr_in addr_serv, struct client c, struct server s, char boot_file[])
 {
 	struct temporitzadors tors;
 	int nack = 0;
@@ -129,7 +129,7 @@ void recorregut_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr
 		{
 			print_if_debug(debug, "Registre equip. Intent: %i", tors.numIntents);
 			paquet = escriure_paquet(0x00, c, aleatori);
-			peticio_registre(debug, fd, paquet, addr_serv, tors.t, &nack, c, s, aleatori, pipe_comandes);
+			peticio_registre(debug, fd, paquet, addr_serv, tors.t, &nack, c, s, aleatori, pipe_comandes, boot_file);
 			tors.numIntents++;
 			tors.n--;
 			tors.p--;
@@ -139,7 +139,7 @@ void recorregut_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr
 			tors.t += T;
 			print_if_debug(debug, "Registre equip. Intent %i.", tors.numIntents);
 			paquet = escriure_paquet(0x00, c, aleatori);
-			peticio_registre(debug, fd, paquet, addr_serv, tors.t, &nack, c, s, aleatori, pipe_comandes);
+			peticio_registre(debug, fd, paquet, addr_serv, tors.t, &nack, c, s, aleatori, pipe_comandes, boot_file);
 			tors.numIntents++;
 			tors.p--;
 		}
@@ -148,7 +148,7 @@ void recorregut_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr
 		{
 			print_if_debug(debug, "Registre equip. Intent %i", tors.numIntents);
 			paquet = escriure_paquet(0x00, c, aleatori);
-			peticio_registre(debug, fd, paquet, addr_serv, tors.t, &nack, c, s, aleatori, pipe_comandes);
+			peticio_registre(debug, fd, paquet, addr_serv, tors.t, &nack, c, s, aleatori, pipe_comandes, boot_file);
 			tors.numIntents++;
 			tors.p--;
 		}
@@ -168,7 +168,7 @@ void recorregut_udp(int debug, int fd, struct paquet_udp paquet, struct sockaddr
  * -----------------
  * Envia el paquet de registre i mira si reb confirmació
  */
-void peticio_registre(int debug, int fd, struct paquet_udp paquet, struct sockaddr_in addr_serv, int t, int *nack, struct client c, struct server s, char aleatori[], int pipe_comandes[])
+void peticio_registre(int debug, int fd, struct paquet_udp paquet, struct sockaddr_in addr_serv, int t, int *nack, struct client c, struct server s, char aleatori[], int pipe_comandes[], char boot_file[])
 {
 	sendto_udp(fd, paquet, addr_serv);
 
@@ -191,7 +191,7 @@ void peticio_registre(int debug, int fd, struct paquet_udp paquet, struct sockad
 			print_if_debug(debug, "Rebut paquet REGISTER_ACK");
 			print_with_time("MSG.  => Equip passa a l'estat REGISTERED");
 			print_with_time("INFO  => Acceptada subscripció amb servidor: (nom:%s, mac:%s, alea:%s, port tcp:%s)",paquet.equip, paquet.mac, paquet.random_number, paquet.dades);
-			comunicacio_periodica(debug, fd, paquet, addr_serv, c, s, pipe_comandes, nack);
+			comunicacio_periodica(debug, fd, paquet, addr_serv, c, s, pipe_comandes, nack, boot_file);
 			strcpy(aleatori, paquet.random_number);
 			break;
 		default:
@@ -258,7 +258,7 @@ struct paquet_udp read_feedback(int debug, int fd, int t)
 	return paquet;
 }
 
-void comunicacio_periodica(int debug, int fd, struct paquet_udp paquet, struct sockaddr_in addr_serv, struct client c, struct server s, int pipe_comandes[], int *nack)
+void comunicacio_periodica(int debug, int fd, struct paquet_udp paquet, struct sockaddr_in addr_serv, struct client c, struct server s, int pipe_comandes[], int *nack, char boot_file[])
 {
 	int stop;
 	int primer_alive;
@@ -273,6 +273,7 @@ void comunicacio_periodica(int debug, int fd, struct paquet_udp paquet, struct s
 	strcpy(info_server.ip, s.server);
 	strcpy(info_server.mac, paquet.mac);
 	strcpy(info_server.aleatori, paquet.random_number);
+	info_server.port_tcp = atoi(paquet.dades);
 
 	stop = 0;
 	count_no_alive_ack = 0;
@@ -326,9 +327,17 @@ void comunicacio_periodica(int debug, int fd, struct paquet_udp paquet, struct s
 		switch (comanda(debug, pipe_comandes))
 		{
 			case 1:
+			    /* comanda quit */
 				close(fd);
 				exit(1);
 				break;
+		    case 2:
+		        /* comanda send-conf */
+		        send_conf_command(debug, s.server, info_server.port_tcp, c, paquet.random_number, boot_file);
+		        break;
+		    case 3:
+		        /* comanda get-conf */
+		        break;
 			default:
 				break;
 		}
@@ -394,16 +403,24 @@ int comanda(int debug, int pipe_comandes[2]){
 	a = select(fd +1, &readfds, NULL, NULL, &timev);
 	if( a < 0 )
 	{
-		print_with_time("ERROR => Select que llegeix del procés pare les comandes.\n");
+        print_with_time("ERROR => Select que llegeix del procés pare les comandes.\n");
 		exit(-1);
 	} else if(FD_ISSET(fd, &readfds)){
 		read(pipe_comandes[0], comanda, sizeof(comanda));
 		if(strcmp(comanda, "quit\n") == 0)
 		{
-			print_if_debug(debug, "S'ha executat la comanda 'quit'.");
+            print_if_debug(debug, "S'ha executat la comanda 'quit'.");
 			print_if_debug(debug, "Finalitzat procés per gestionar alives.");
 			return 1;
-		}
+		} else if(strcmp(comanda, "send-conf\n") == 0)
+        {
+            print_if_debug(debug, "S'executarà comanda 'send-conf'.");
+            return 2;
+        } else if(strcmp(comanda, "get-conf\n") == 0)
+        {
+            print_if_debug(debug, "S'executarà comanda 'get-conf'.");
+            return 3;
+        }
 	}
 	return 0;
 }
