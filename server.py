@@ -15,22 +15,23 @@ import select
 
 
 def print_if_debug(debug, cadena):
-    """print_if_debug"""
+    """ Enviem informacio per pantalla amb l'hora en cas que estigui en mode DEBUG """
     if debug:
         print(time.strftime("%H:%M:%S DEBUG => ") + cadena)
 
 
 def print_if_error(cadena):
-    """ print_if_debug """
+    """ Enviem informacio d'error amb l'hora """
     print(time.strftime("%H:%M:%S ERROR => ") + cadena)
 
 
 def print_with_time(cadena):
-    """ print_with_time """
+    """ Enviem informacio amb l'hora """
     print(time.strftime("%H:%M:%S ") + cadena)
 
 
 def imprimir_per_pantalla(equips):
+    """ Imprimeix per pantalla els equips en cas que s'hagi demanat """
     for equip in equips:
         if equip['estat'].__eq__('DISCONNECTED'):
             print(' ' + equip['nom'] + '\t\t\t' + equip['mac'] + '\t\t' + equip['estat'])
@@ -39,6 +40,7 @@ def imprimir_per_pantalla(equips):
 
 
 def comandes_consola(DEBUG, EQUIPS, quit, pid):
+    """ Funcio del thread que llegeix per consola """
     print_if_debug(DEBUG, 'Thread per tractar comandes per consola obert')
     while not quit:
         comanda = raw_input('')
@@ -51,13 +53,13 @@ def comandes_consola(DEBUG, EQUIPS, quit, pid):
 
 
 def to_str_dades_udp(dades):
-    """ to_str_dades_udp """
+    """ Retorna una cadena ben formada per llegir donat un paquet """
     return 'bytes=' + str(len(dades)) + ', tipus=' + str(serdat.to_str_tipus(dades[0])) + ', nom=' + \
         dades[1:7] + ', mac=' + dades[8:20] + ', alea=' + dades[21:27] + ', dades=' + dades[27:]
 
 
 def create_empty_pack(type, data):
-    """ create_rej_pack    """
+    """ Crea un paquet amb pdu udp buit del tipus i amb les dades que volguem """
     camps = ['', '', '', '']
     llargada_camps = (7, 13, 7, 50)
     index_camps = 0
@@ -68,14 +70,14 @@ def create_empty_pack(type, data):
 
 
 def enviar_reg_rej(sock, address, data):
-    """ enviar_paquet_udp_rej """
+    """ Envia paquet REG_REJ """
     pack = create_empty_pack(0x03, data)
     print_if_debug(DEBUG, 'Enviat ' + to_str_dades_udp(pack))
     sock.sendto(pack, address)
 
 
 def enviar_reg_ack(sock, address, dades_serv, equip):
-    """ enviar_paquet_ack """
+    """ Envia paquet REG_ACK """
 
     def num_aleatori():
         import random
@@ -93,18 +95,21 @@ def enviar_reg_ack(sock, address, dades_serv, equip):
 
 
 def enviar_paquet_err(sock, address):
+    """ Envia paquet ERROR """
     data = struct.pack('c7s13s7s50s', chr(0x09), '', '', '', '')
     print_if_debug(DEBUG, 'Enviat ' + to_str_dades_udp(data))
     sock.sendto(data, address)
 
 
 def enviar_reg_nack(sock, address, dades):
+    """ Envia REG_NACK """
     pack = create_empty_pack(0x02, dades)
     print_if_debug(DEBUG, 'Enviat ' + to_str_dades_udp(pack))
     sock.sendto(pack, address)
 
 
 def confirmacio_registre(data, sock, address, equips, dades_servidor):
+    """ Busca l'equip i mira si el pot acceptar. """
     for equip in equips:
         if equip['nom'].__eq__(data[1:6]) and equip['mac'].__eq__(data[8:20]):
             if data[21:27].__eq__(equip['aleatori']) or not equip['estat'].__eq__('DISCONNECTED'):
@@ -132,24 +137,28 @@ def confirmacio_registre(data, sock, address, equips, dades_servidor):
 
 
 def enviar_alive_ack(sock, address, dades_serv, equip):
+    """ ENVIA ALIVE_ACK """
     data = struct.pack('c7s13s7s50s', chr(0x11), dades_serv['Nom'], dades_serv['MAC'], equip['aleatori'], '')
     print_if_debug(DEBUG, 'Enviat ' + to_str_dades_udp(data))
     sock.sendto(data, address)
 
 
 def enviar_alive_rej(sock, address, motiu):
+    """ Envia ALIVE_REJ """
     pack = create_empty_pack(0x13, motiu)
     print_if_debug(DEBUG, 'Enviat ' + to_str_dades_udp(pack))
     sock.sendto(pack, address)
 
 
 def enviar_alive_nack(sock, address, motiu):
+    """ Envia ALIVE_NACK """
     pack = create_empty_pack(0x12, motiu)
     print_if_debug(DEBUG, 'Enviat ' + to_str_dades_udp(pack))
     sock.sendto(pack, address)
 
 
 def control_manteniment_comunicacio(data, sock, address, equips, dades_serv):
+    """ Al rebre un ALIVE_INF, busca l'equip i mira si esta REGISTERED o ALIVE i si esta tot correcte per enviar ALIVE_ACK """
     for equip in equips:
         if equip['nom'].__eq__(data[1:6]) and equip['mac'].__eq__(data[8:20]) and equip['estat'].__eq__('DISCONNECTED'):
             enviar_alive_rej(sock, address, 'Equip no registrat al sistema.')
@@ -171,7 +180,7 @@ def control_manteniment_comunicacio(data, sock, address, equips, dades_serv):
 
 
 def tractar_dades_udp(data, sock, address, equips, dades_servidor):
-    """ fadsfa """
+    """ Mira el tipus PDU i realitza la comunicacio de registres i alives """
 
     if ord(data[0]) == 0x00:
         confirmacio, equip = confirmacio_registre(data, sock, address, equips, dades_servidor)
@@ -185,6 +194,7 @@ def tractar_dades_udp(data, sock, address, equips, dades_servidor):
 
 
 def errors_addicionals(data_tcp, equips, address):
+    """ Mira si hi ha errors adicionals i retorna (Boolean, aleatori) """
     for equip in equips:
         if equip['nom'].__eq__(data_tcp[1:6]) and equip['mac'].__eq__(data_tcp[8:20]) and equip['aleatori'].__eq__(data_tcp[21:27]):
             return False, data_tcp[21:27]
@@ -192,6 +202,7 @@ def errors_addicionals(data_tcp, equips, address):
 
 
 def es_client_registrat(data_tcp, equips):
+    """ Mira si el client esta registrat, tupla format per Boolean i el nom de l'equip ('' en cas negatiu)"""
     for equip in equips:
         if equip['nom'].__eq__(data_tcp[1:6]) and equip['mac'].__eq__(data_tcp[8:20]):
             return True, equip['nom']
@@ -199,6 +210,7 @@ def es_client_registrat(data_tcp, equips):
 
 
 def enviar_send_ack(dades, sock, nom_equip, aleatori):
+    """ Envia el SEND_ACK """
     data = struct.pack('c7s13s7s150s', chr(0x21), dades['Nom'], dades['MAC'], aleatori, nom_equip + '.cfg')
     print_if_debug(DEBUG, 'Enviat ' + to_str_dades_udp(data))
     sock.send(data)
@@ -206,6 +218,7 @@ def enviar_send_ack(dades, sock, nom_equip, aleatori):
 
 
 def create_empty_pack_tcp(type, data):
+    """ Crea paquets amb pdu de TCP buits del tipus i amb les dades que vulguem """
     camps = ['', '', '', '']
     llargada_camps = (7, 13, 7, 50)
     index_camps = 0
@@ -216,30 +229,34 @@ def create_empty_pack_tcp(type, data):
 
 
 def enviar_send_nack(sock):
+    """ Envia el paquet SEND_NACK """
     pack = create_empty_pack_tcp(0x22, 'Dades addicionals de l\'equip incorrectes')
     print_if_debug(DEBUG, 'Enviat ' + to_str_dades_udp(pack))
     sock.send(pack)
 
 
 def enviar_send_rej(sock):
+    """ Envia el paquet SEND_REJ """
     pack = create_empty_pack_tcp(0x23, 'Dades de l\'equip incorrectes')
     print_if_debug(DEBUG, 'Enviat ' + to_str_dades_udp(pack))
     sock.send(pack)
 
 
 def trobar_dades(dades):
+    """ Nomes agafem la primera part util de les dades """
     for item in dades:
         if item:
             return item
 
 
 def to_str_dades_tcp(pack, dades):
-    """ to_str_dades_udp """
+    """ Ens serveix per mostrar per pantalla despres el paquet"""
     return 'bytes=' + str(len(pack)) + ', tipus=' + str(serdat.to_str_tipus(pack[0])) + ', nom=' + \
         pack[1:7] + ', mac=' + pack[8:20] + ', alea=' + pack[21:27] + ', dades=' + dades
 
 
 def recepcio_paquets_send(sock, fitxer):
+    """ Fem el temporitzador amb el select i al ser rebut mirem si es SEND_DATA o SEND_END """
     w = 4
     inputs = [sock]
     end = False
@@ -260,17 +277,20 @@ def recepcio_paquets_send(sock, fitxer):
     fitxer.close()
 
 def enviar_get_rej(sock):
+    """ Engia GET_REJ amb el motiu de dades incorrectes """
     pack = create_empty_pack_tcp(0x33, 'Dades de l\'equip incorrectes')
     print_if_debug(DEBUG, 'Enviat ' + to_str_dades_udp(pack))
     sock.send(pack)
 
 def enviar_get_nack(sock):
+    """ Envia el GET_NACK amb el motiu """
     pack = create_empty_pack_tcp(0x32, 'Dades addicionals de l\'equip incorrectes')
     print_if_debug(DEBUG, 'Enviat ' + to_str_dades_udp(pack))
     sock.send(pack)
 
 
 def enviar_get_ack(dades, sock, nom_equip, aleatori):
+    """ Mira si existeix nom_equip.cfg, en cas afirmatiu envia l'ack, en cas negatiu envia rej"""
     try:
         open(nom_equip + '.cfg', 'r')
         data = struct.pack('c7s13s7s150s', chr(0x31), dades['Nom'], dades['MAC'], aleatori, nom_equip + '.cfg')
@@ -285,6 +305,7 @@ def enviar_get_ack(dades, sock, nom_equip, aleatori):
 
 
 def enviar_paquets_get(sock, fitxer, aleatori, dades):
+    """ Envia els get_data i al final el get_end """
     fitxer = open(fitxer, 'r')
     lines = fitxer.readlines()
     for line in lines:
@@ -298,6 +319,7 @@ def enviar_paquets_get(sock, fitxer, aleatori, dades):
 
 
 def tcp_data(newsock, dades, equips, address):
+    """ Rep dades del socket i segons el paquet, envia diferents retroalimentacions """
     data_tcp = newsock.recv(178)
     print_if_debug(DEBUG, 'Rebut ' + to_str_dades_udp(data_tcp))
     if ord(data_tcp[0]) == 0x20:
@@ -332,8 +354,8 @@ def tcp_data(newsock, dades, equips, address):
     exit(0)
 
 
-def udp(dades, equips, quit_command):
-    """ dhsaui"""
+def connexio(dades, equips, quit_command):
+    """ Realitza la connexio amb el servidor, tan per UDP com per TCP. """
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock_tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -417,4 +439,4 @@ if __name__ == '__main__':
     print_with_time('INFO  => Llegits ' + str(len(EQUIPS)) + ' equips autoritzats en el sistema')
     consola = threading.Thread(target=comandes_consola, args=(DEBUG, EQUIPS, quit_command, os.getpid()))
     consola.start()
-    udp(DADES, EQUIPS, quit_command)
+    connexio(DADES, EQUIPS, quit_command)

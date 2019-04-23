@@ -229,7 +229,7 @@ struct paquet_udp read_feedback(int debug, int fd, int t)
 	struct timeval timev;
 
 	memset(&paquet, 0, sizeof(paquet));
-	paquet.type = 0x13;
+	paquet.type = 0x12;
 
 	timev.tv_sec = t;
 	timev.tv_usec = 0;
@@ -258,6 +258,12 @@ struct paquet_udp read_feedback(int debug, int fd, int t)
 	return paquet;
 }
 
+
+/*
+ * Funció: comunicacio_periodica
+ * -----------------
+ * Va enviant paquets ALIVE_INF i, segons el que rep, continua en el mateix estat o canvia.
+ */
 void comunicacio_periodica(int debug, int fd, struct paquet_udp paquet, struct sockaddr_in addr_serv, struct client c, struct server s, int pipe_comandes[], int *nack, char boot_file[])
 {
 	int stop;
@@ -288,10 +294,12 @@ void comunicacio_periodica(int debug, int fd, struct paquet_udp paquet, struct s
 		switch (paquet_recv.type)
 		{
 			case 0x12:
+				/* ALIVE_NACK */
 				count_no_alive_ack++;
 				stop=control_stop(count_no_alive_ack);
 				break;
 			case 0x11:
+				/* ALIVE_ACK */
 				if(es_servidor_correcte(paquet_recv, info_server))
 				{
 					count_no_alive_ack = 0;
@@ -307,11 +315,13 @@ void comunicacio_periodica(int debug, int fd, struct paquet_udp paquet, struct s
 				}
 				break;
 			case 0x13:
+				/* ALIVE_NACK */
 				print_with_time("MSG.  => Equip passa a l'estat DISCONNECTED. Motiu: Suplantació identitat");
 				*nack = 1;
 				stop = 1;
 				break;
 		    case 0x01:
+				/* REGISTER_ACK */
                 print_if_debug(debug, "Rebut paquet REGISTER_ACK");
                 print_with_time("MSG.  => Equip passa a l'estat REGISTERED");
                 print_with_time("INFO  => Acceptada subscripció amb servidor: (nom:%s, mac:%s, alea:%s, port tcp:%s)",paquet_recv.equip, paquet_recv.mac, paquet_recv.random_number, paquet_recv.dades);
@@ -347,6 +357,11 @@ void comunicacio_periodica(int debug, int fd, struct paquet_udp paquet, struct s
 	print_if_debug(debug, "Marxem de la comunicació periòdica");
 }
 
+/*
+ * Funció: espera_comandes_consola
+ * -----------------
+ * Envia la informació al procés fill quan es pugui del que es fiqui per pantalla
+ */
 void espera_comandes_consola(int debug, int pipe_comandes[2], int pid)
 {
 	char comanda[20];
@@ -386,7 +401,11 @@ void espera_comandes_consola(int debug, int pipe_comandes[2], int pid)
 	exit(1);
 }
 
-
+/*
+ * Funció: comanda
+ * -----------------
+ * Retorna un nombre enter segons la comanda.
+ */
 int comanda(int debug, int pipe_comandes[2]){
 	char comanda[20];
 	int a;
@@ -426,11 +445,20 @@ int comanda(int debug, int pipe_comandes[2]){
 	return 0;
 }
 
-
+/*
+ * Funció: es_servidor_correcte
+ * -----------------
+ * Mira si el servidor és el mateix que al que rebem al REGISTER_ACK
+ */
 int es_servidor_correcte(struct paquet_udp paquet_recv, struct info_serv info_s){
 	return !strcmp(paquet_recv.equip, info_s.nom) && !strcmp(paquet_recv.mac, info_s.mac) && !strcmp(paquet_recv.random_number, info_s.aleatori);
 }
 
+/*
+ * Funció: control_stop
+ * -----------------
+ * Mira si s'ha superat el màxim de ALIVE_ACK no rebuts.
+ */
 int control_stop(int count_no_alive_ack)
 {
 	if(U <= count_no_alive_ack)
@@ -441,15 +469,11 @@ int control_stop(int count_no_alive_ack)
 	return 0;
 }
 
-int comprovacio_alive_ack(int debug,struct paquet_udp paquet1, struct paquet_udp paquet2, int count)
-{
-	if(strcmp(paquet1.random_number, paquet2.random_number) != 0)
-	{
-		return count+1;
-	}
-	return count;
-}
-
+/*
+ * Funció: escriure_paquet
+ * -----------------
+ * Escriu el paquet amb la pdu udp segons el tipus, el client i l'aleatori. 
+ */
 struct paquet_udp escriure_paquet(int type ,struct client c, char * random)
 {
 	struct paquet_udp p;

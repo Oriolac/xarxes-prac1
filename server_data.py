@@ -3,7 +3,7 @@ from server import *
 
 
 def lectura_parametres():
-    """lectura_parametres"""
+    """ Lectura dels parametres d'entrada. """
 
     nom_arxius = {'servidor': 'server.cfg', 'equips': 'equips.dat'}
     debug = False
@@ -32,7 +32,7 @@ def lectura_parametres():
 
 
 def obrir_arxius(nom_arxius):
-    """fdsa """
+    """ Retorna les dades del servidor i dels equips"""
     try:
         f_server = open(nom_arxius['servidor'], 'r')
         f_equip = open(nom_arxius['equips'], 'r')
@@ -43,7 +43,7 @@ def obrir_arxius(nom_arxius):
 
 
 def agafar_dades_servidor(fitxer):
-    """ agafar_dades_servidor """
+    """ Retorna les dades del servidor"""
     dades = {}
     lines = fitxer.readlines()
     for line in lines:
@@ -55,7 +55,7 @@ def agafar_dades_servidor(fitxer):
 
 
 def agafar_dades_equips(fitxer):
-    """ agafar_dades_equips """
+    """ Retorna una llista amb tots els equips """
     llistat_dades = []
     lines = fitxer.readlines()
     for line in lines:
@@ -66,7 +66,7 @@ def agafar_dades_equips(fitxer):
 
 
 def dades_equip(line):
-    """ fsjadiofas """
+    """ Retorna les dades d'un equip. Per defecte, disconnected i 000000 """
     dades = dict()
     dades['nom'] = line[0]
     dades['mac'] = line[1]
@@ -76,7 +76,7 @@ def dades_equip(line):
 
 
 def to_str_tipus(tipus):
-    """ to_str_tipus """
+    """ Retorna la comanda segons el tipus """
     tipus = ord(tipus)
     dicc_tipus = {0x00: 'REGISTER_REQ', 0x01: 'REGISTER_ACK', 0x02: 'REGISTER_NACK', 0x03: 'REGISTER_REJ', 0x09: 'ERROR', 0x10: 'ALIVE_INF', 0x11: 'ALIVE_ACK', 0x12: 'ALIVE_NACK', 0x13: 'ALIVE_REJ',
                   0x20: 'SEND_FILE', 0x21: 'SEND_ACK', 0x22: 'SEND_NACK', 0x23: 'SEND_REJ', 0x24: 'SEND_DATA', 0x25: 'SEND_END',
@@ -86,6 +86,7 @@ def to_str_tipus(tipus):
 
 
 def to_int_tipus(str):
+    """Retorna l'enter que correspon a la comanda"""
     dicc_tipus = {'REGISTER_REQ': 0x00, 'REGISTER_ACK': 0x01, 'REGISTER_NACK': 0x02, 'REGISTER_REJ': 0x03, 'ERROR': 0x09, 'ALIVE_INF': 0x10, 'ALIVE_ACK': 0x11, 'ALIVE_NACK': 0x12, 'ALIVE_REG': 0x13,
                   'SEND_FILE': 0x20, 'SEND_ACK': 0x21, 'SEND_NACK': 0x22, 'SEND_REJ': 0x23, 'SEND_DATA': 0x24, 'SEND_END': 0x25,
                   'GET_FILE': 0x20, 'GET_ACK': 0x21, 'GET_NACK': 0x22, 'GET_REJ': 0x23, 'GET_DATA': 0x24, 'GET_END': 0x25}
