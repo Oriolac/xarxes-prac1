@@ -337,6 +337,7 @@ void comunicacio_periodica(int debug, int fd, struct paquet_udp paquet, struct s
 		        break;
 		    case 3:
 		        /* comanda get-conf */
+				get_conf_command(debug, s.server, info_server.port_tcp, c, paquet.random_number, boot_file);
 		        break;
 			default:
 				break;
@@ -424,9 +425,6 @@ int comanda(int debug, int pipe_comandes[2]){
 	}
 	return 0;
 }
-
-
-
 
 
 int es_servidor_correcte(struct paquet_udp paquet_recv, struct info_serv info_s){

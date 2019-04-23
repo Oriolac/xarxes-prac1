@@ -49,6 +49,18 @@ char* tipus_pdu(unsigned char c)
 			return "SEND_DATA";
 		case 0x25:
 			return "SEND_END";
+		case 0x30:
+			return "GET_FILE";
+		case 0x31:
+			return "GET_ACK";
+		case 0x32:
+			return "GET_NACK";
+		case 0x33:
+			return "GET_REJ";
+		case 0x34:
+			return "GET_DATA";
+		case 0x35:
+			return "GET_END";
 		default:
 			return "?";
 	}
