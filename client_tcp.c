@@ -7,23 +7,23 @@
 
 #define W 4
 
-void send_conf_command(int debug, char host[20], int port, struct client c, char aleatori[7], char boot_file[])
+void send_conf_command(int debug, struct server s, struct info_serv inf_s, struct client c, char aleatori[7], char boot_file[])
 {
     int pid;
-    struct server s;
+    struct server s_tcp;
 
     pid = fork();
     if(pid == 0)
     {
         print_if_debug(debug, "Fill per la connexió TCP creat!");
-        strcpy(s.server, host);
-        s.server_port = port;
-        send_conf(debug, s, c, aleatori, boot_file);
+        strcpy(s_tcp.server, s.server);
+        s_tcp.server_port = inf_s.port_tcp;
+        send_conf(debug, s_tcp, c, aleatori, boot_file, inf_s);
         exit(1);
     }
 }
 
-void send_conf(int debug, struct server s, struct client c, char aleatori[7], char boot_file[])
+void send_conf(int debug, struct server s, struct client c, char aleatori[7], char boot_file[], struct info_serv inf_s)
 {
     struct sockaddr_in addr_serv;
     struct paquet_tcp paquet;
@@ -50,16 +50,18 @@ void send_conf(int debug, struct server s, struct client c, char aleatori[7], ch
     strcpy(paquet.random_number, aleatori);
     strcpy(paquet.dades, "\0");
 
+    
+
 
     fseek(file, 0L, SEEK_END);
     print_if_debug(debug, "Obert fitxer %s de %i B.", boot_file, ftell(file));
     sprintf(paquet.dades, "%s,%ld", boot_file, ftell(file));
-    comunicacio_enviar_fitxer(debug, fd, addr_serv, paquet, file, c);
+    comunicacio_enviar_fitxer(debug, fd, addr_serv, paquet, file, c, inf_s);
     fclose(file);
     print_if_debug(debug, "Es tanca fitxer %s", boot_file);
 }
 
-void comunicacio_enviar_fitxer(int debug, int fd, struct sockaddr_in addr_serv, struct paquet_tcp paquet, FILE * file, struct client c)
+void comunicacio_enviar_fitxer(int debug, int fd, struct sockaddr_in addr_serv, struct paquet_tcp paquet, FILE * file, struct client c, struct info_serv inf_s)
 {
     int a;
     struct timeval timev;
@@ -90,7 +92,11 @@ void comunicacio_enviar_fitxer(int debug, int fd, struct sockaddr_in addr_serv, 
 		print_if_debug(debug,"S'ha rebut el paquet: tipus=%s, nom=%s, mac=%s, alea=%s, dades=%s", tipus_pdu(paquet.type), paquet.equip, paquet.mac, paquet.random_number, paquet.dades);
         if(paquet.type == 0x21)
         {
-            enviar_arxiu_configuracio(debug, fd, paquet, file, c); 
+            if(dades_pdu_tcp_correctes(paquet, inf_s)){
+                enviar_arxiu_configuracio(debug, fd, paquet, file, c); 
+            } else {
+                print_if_debug(debug, "S'ha rebut ACK incorrecte");
+            }
         } else {
             print_if_debug(debug, "No s'ha rebut ACK. Es tanca comunicació.");
         }
@@ -98,6 +104,15 @@ void comunicacio_enviar_fitxer(int debug, int fd, struct sockaddr_in addr_serv, 
         print_if_debug(debug, "No s'ha rebut cap ACK");
     }
     close(fd);
+}
+
+int dades_pdu_tcp_correctes(struct paquet_tcp paquet, struct info_serv inf_s)
+{
+    if(strcmp(paquet.equip, inf_s.nom) == 0 && strcmp(paquet.mac, inf_s.mac) == 0 && strcmp(paquet.random_number, inf_s.aleatori) == 0)
+    {
+        return 1;
+    }
+    return 0;
 }
 
 void enviar_arxiu_configuracio(int debug, int fd, struct paquet_tcp paquet, FILE * file, struct client c)
@@ -120,23 +135,23 @@ void enviar_arxiu_configuracio(int debug, int fd, struct paquet_tcp paquet, FILE
     print_with_time("MSG.  => Finalitzat enviament d'arxiu de configuració al servidor");
 }
 
-void get_conf_command(int debug, char host[20], int port, struct client c, char aleatori[7], char boot_file[])
+void get_conf_command(int debug, struct server s, struct info_serv inf_s, struct client c, char aleatori[7], char boot_file[])
 {    
     int pid;
-    struct server s;
+    struct server s_tcp;
 
     pid = fork();
     if(pid == 0)
     {
         print_if_debug(debug, "Fill per la connexió TCP creat!");
-        strcpy(s.server, host);
-        s.server_port = port;
-        get_conf(debug, s, c, aleatori, boot_file);
+        strcpy(s_tcp.server, s.server);
+        s_tcp.server_port = inf_s.port_tcp;
+        get_conf(debug, s_tcp, c, aleatori, boot_file, inf_s);
         exit(1);
     }
 }
 
-void get_conf(int debug, struct server s, struct client c, char aleatori[7], char boot_file[])
+void get_conf(int debug, struct server s, struct client c, char aleatori[7], char boot_file[], struct info_serv inf_s)
 {
 
     struct sockaddr_in addr_serv;
@@ -168,12 +183,12 @@ void get_conf(int debug, struct server s, struct client c, char aleatori[7], cha
     fseek(file, 0L, SEEK_END);
     print_if_debug(debug, "Obert fitxer %s de %i B.", boot_file, ftell(file));
     sprintf(paquet.dades, "%s,%ld", boot_file, ftell(file));
-    comunicacio_rebre_fitxer(debug, fd, addr_serv, paquet, file, c);
+    comunicacio_rebre_fitxer(debug, fd, addr_serv, paquet, file, c, inf_s);
     fclose(file);
     print_if_debug(debug, "Es tanca fitxer %s", boot_file);
 }
 
-void comunicacio_rebre_fitxer(int debug, int fd, struct sockaddr_in addr_serv, struct paquet_tcp paquet, FILE * file, struct client c)
+void comunicacio_rebre_fitxer(int debug, int fd, struct sockaddr_in addr_serv, struct paquet_tcp paquet, FILE * file, struct client c, struct info_serv inf_s)
 {
     int a;
     struct timeval timev;
@@ -204,7 +219,11 @@ void comunicacio_rebre_fitxer(int debug, int fd, struct sockaddr_in addr_serv, s
 		print_if_debug(debug,"S'ha rebut el paquet: tipus=%s, nom=%s, mac=%s, alea=%s, dades=%s", tipus_pdu(paquet.type), paquet.equip, paquet.mac, paquet.random_number, paquet.dades);
         if(paquet.type == 0x31)
         {
-            rebre_arxiu_configuracio(debug, fd, paquet, file, c); 
+            if(dades_pdu_tcp_correctes(paquet, inf_s)){
+                rebre_arxiu_configuracio(debug, fd, paquet, file, c); 
+            } else {
+                print_if_debug(debug, "S'ha rebut ACK incorrecte");
+            }
         } else {
             print_if_debug(debug, "No s'ha rebut ACK. Es tanca comunicació.");
         }
@@ -217,8 +236,9 @@ void comunicacio_rebre_fitxer(int debug, int fd, struct sockaddr_in addr_serv, s
 void rebre_arxiu_configuracio(int debug, int fd, struct paquet_tcp paquet, FILE * file, struct client c)
 {
     char linea[150];
+    int end = 0;
     fseek(file, 0, SEEK_SET);
-    while(fgets(linea, 150, file))
+    while(fgets(linea, 150, file) && !end)
     {
         if(read(fd, &paquet, sizeof(paquet)) > 0)
         {
@@ -226,6 +246,10 @@ void rebre_arxiu_configuracio(int debug, int fd, struct paquet_tcp paquet, FILE 
             if(paquet.type == 0x34)
             {
                 fprintf(file, "%s", paquet.dades);
+            } else if(paquet.type == 0x35)
+            {
+                print_if_debug(debug, "Fi de get_conf");
+                end = 1;
             } else
             {
                 print_if_debug(debug, "No s'ha rebut GET_DATA");
@@ -235,10 +259,18 @@ void rebre_arxiu_configuracio(int debug, int fd, struct paquet_tcp paquet, FILE 
             fprintf(file, "\n");
         }
     }
+    while(fgets(linea, 150, file))
+    {
+        fprintf(file, "\n");
+    }
+    if(!end)
+    {
+        print_with_time("MSG.  => No s'ha rebut GET_END.");
+    }
 
     paquet.type = (unsigned char) 0x25;
     strcpy(paquet.dades, "");
     write(fd, &paquet, sizeof(paquet));
-    print_with_time("MSG.  => Finalitzat repeció d'arxiu de configuració al servidor");
+    print_with_time("MSG.  => Finalitzat recepció d'arxiu de configuració al servidor");
 
 }

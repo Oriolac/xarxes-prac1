@@ -333,11 +333,11 @@ void comunicacio_periodica(int debug, int fd, struct paquet_udp paquet, struct s
 				break;
 		    case 2:
 		        /* comanda send-conf */
-		        send_conf_command(debug, s.server, info_server.port_tcp, c, paquet.random_number, boot_file);
+		        send_conf_command(debug, s, info_server, c, paquet.random_number, boot_file);
 		        break;
 		    case 3:
 		        /* comanda get-conf */
-				get_conf_command(debug, s.server, info_server.port_tcp, c, paquet.random_number, boot_file);
+				get_conf_command(debug, s, info_server, c, paquet.random_number, boot_file);
 		        break;
 			default:
 				break;

@@ -42,13 +42,14 @@ struct paquet_udp escriure_paquet(int type ,struct client c, char * random);
 
 
 /*      client_tcp.c         */
-void send_conf_command(int debug, char host[20], int port, struct client c, char aleatori[7], char boot_file[]);
-void send_conf(int debug, struct server s, struct client c, char aleatori[7], char boot_file[]);
-void comunicacio_enviar_fitxer(int debug, int fd, struct sockaddr_in addr_serv, struct paquet_tcp paquet, FILE * file, struct client c);
+void send_conf_command(int debug, struct server s, struct info_serv inf_s, struct client c, char aleatori[7], char boot_file[]);
+void send_conf(int debug, struct server s, struct client c, char aleatori[7], char boot_file[], struct info_serv inf_s);
+void comunicacio_enviar_fitxer(int debug, int fd, struct sockaddr_in addr_serv, struct paquet_tcp paquet, FILE * file, struct client c, struct info_serv inf_s);
+int dades_pdu_tcp_correctes(struct paquet_tcp paquet, struct info_serv inf_s);
 void enviar_arxiu_configuracio(int debug, int fd, struct paquet_tcp paquet, FILE * file, struct client c);
-void get_conf_command(int debug, char host[20], int port, struct client c, char aleatori[7], char boot_file[]);
-void get_conf(int debug, struct server s, struct client c, char aleatori[7], char boot_file[]);
-void comunicacio_rebre_fitxer(int debug, int fd, struct sockaddr_in addr_serv, struct paquet_tcp paquet, FILE * file, struct client c);
+void get_conf_command(int debug, struct server s, struct info_serv inf_s, struct client c, char aleatori[7], char boot_file[]);
+void get_conf(int debug, struct server s, struct client c, char aleatori[7], char boot_file[], struct info_serv inf_s);
+void comunicacio_rebre_fitxer(int debug, int fd, struct sockaddr_in addr_serv, struct paquet_tcp paquet, FILE * file, struct client c, struct info_serv inf_s);
 void rebre_arxiu_configuracio(int debug, int fd, struct paquet_tcp paquet, FILE * file, struct client c);
 
 #endif
