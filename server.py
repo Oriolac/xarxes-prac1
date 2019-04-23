@@ -11,6 +11,7 @@ import signal
 import struct
 import threading
 import os
+import select
 
 
 def print_if_debug(debug, cadena):
@@ -183,10 +184,147 @@ def tractar_dades_udp(data, sock, address, equips, dades_servidor):
         enviar_paquet_err(sock, address)
 
 
+def errors_addicionals(data_tcp, equips, address):
+    for equip in equips:
+        if equip['nom'].__eq__(data_tcp[1:6]) and equip['mac'].__eq__(data_tcp[8:20]) and equip['aleatori'].__eq__(data_tcp[21:27]):
+            return False, data_tcp[21:27]
+    return True, ''
+
+
+def es_client_registrat(data_tcp, equips):
+    for equip in equips:
+        if equip['nom'].__eq__(data_tcp[1:6]) and equip['mac'].__eq__(data_tcp[8:20]):
+            return True, equip['nom']
+    return False, ''
+
+
+def enviar_send_ack(dades, sock, nom_equip, aleatori):
+    data = struct.pack('c7s13s7s150s', chr(0x21), dades['Nom'], dades['MAC'], aleatori, nom_equip + '.cfg')
+    print_if_debug(DEBUG, 'Enviat ' + to_str_dades_udp(data))
+    sock.send(data)
+    return nom_equip + '.cfg'
+
+
+def create_empty_pack_tcp(type, data):
+    camps = ['', '', '', '']
+    llargada_camps = (7, 13, 7, 50)
+    index_camps = 0
+    for llargada in llargada_camps:
+        camps[index_camps] = camps[index_camps].zfill(llargada)
+        index_camps += 1
+    return struct.pack('c7s13s7s150s', chr(type), '', '', '', data)
+
+
+def enviar_send_nack(sock):
+    pack = create_empty_pack_tcp(0x22, 'Dades addicionals de l\'equip incorrectes')
+    print_if_debug(DEBUG, 'Enviat ' + to_str_dades_udp(pack))
+    sock.send(pack)
+
+
+def enviar_send_rej(sock):
+    pack = create_empty_pack_tcp(0x23, 'Dades de l\'equip incorrectes')
+    print_if_debug(DEBUG, 'Enviat ' + to_str_dades_udp(pack))
+    sock.send(pack)
+
+
+def trobar_dades(dades):
+    for item in dades:
+        if item:
+            return item
+
+
+def to_str_dades_tcp(pack, dades):
+    """ to_str_dades_udp """
+    return 'bytes=' + str(len(pack)) + ', tipus=' + str(serdat.to_str_tipus(pack[0])) + ', nom=' + \
+        pack[1:7] + ', mac=' + pack[8:20] + ', alea=' + pack[21:27] + ', dades=' + dades
+
+
+def recepcio_paquets_send(sock, fitxer):
+    w = 4
+    inputs = [sock]
+    end = False
+    fitxer = open(fitxer, 'w+')
+    while not end:
+        reads, writes, excepts = select.select(inputs, [], [], w)
+        for r in reads:
+            if r is sock:
+                data = sock.recv(178)
+                dades = data[27:]
+                dades = dades.split('\x00')
+                dades = trobar_dades(dades)
+                print_if_debug(DEBUG, 'Rebut ' + to_str_dades_tcp(data, dades))
+                if ord(data[0]) == 0x25:
+                    end = True
+                elif ord(data[0]) == 0x24:
+                    fitxer.write(dades)
+    fitxer.close()
+
+def enviar_get_rej(sock):
+    pack = create_empty_pack_tcp(0x33, 'Dades de l\'equip incorrectes')
+    print_if_debug(DEBUG, 'Enviat ' + to_str_dades_udp(pack))
+    sock.send(pack)
+
+def enviar_get_nack(sock):
+    pack = create_empty_pack_tcp(0x32, 'Dades addicionals de l\'equip incorrectes')
+    print_if_debug(DEBUG, 'Enviat ' + to_str_dades_udp(pack))
+    sock.send(pack)
+
+
+def enviar_get_ack(dades, sock, nom_equip, aleatori):
+    data = struct.pack('c7s13s7s150s', chr(0x31), dades['Nom'], dades['MAC'], aleatori, nom_equip + '.cfg')
+    print_if_debug(DEBUG, 'Enviat ' + to_str_dades_udp(data))
+    sock.send(data)
+    return nom_equip + '.cfg'
+
+
+def enviar_paquets_get(sock, fitxer, aleatori, dades):
+    fitxer = open(fitxer, 'r')
+    lines = fitxer.readlines()
+    for line in lines:
+        data = struct.pack('c7s13s7s150s', chr(0x34), dades['Nom'], dades['MAC'], aleatori, line)
+        print_if_debug(DEBUG, 'Enviat ' + to_str_dades_udp(data))
+        sock.send(data)
+    fitxer.close()
+    data = struct.pack('c7s13s7s150s', chr(0x35), dades['Nom'], dades['MAC'], aleatori, '')
+    print_if_debug(DEBUG, 'Enviat ' + to_str_dades_udp(data))
+    sock.send(data)
+
+
+def tcp_data(newsock, dades, equips, address):
+    data_tcp = newsock.recv(178)
+    print_if_debug(DEBUG, 'Rebut ' + to_str_dades_udp(data_tcp))
+    if ord(data_tcp[0]) == 0x20:
+        esta_registrat, client = es_client_registrat(data_tcp, equips)
+        if esta_registrat:
+            existeix, aleatori = errors_addicionals(data_tcp, equips, address)
+            if not existeix:
+                fitxer = enviar_send_ack(dades, newsock, client, aleatori)
+                recepcio_paquets_send(newsock, fitxer)
+            else:
+                enviar_send_nack(newsock)
+        else:
+            enviar_send_rej(newsock)
+    elif ord(data_tcp[0]) == 0x30:
+        esta_registrat, client = es_client_registrat(data_tcp, equips)
+        if esta_registrat:
+            existeix, aleatori = errors_addicionals(data_tcp, equips, address)
+            if not existeix:
+                fitxer = enviar_get_ack(dades, newsock, client, aleatori)
+                enviar_paquets_get(newsock, fitxer, aleatori, dades)
+            else:
+                enviar_get_nack(newsock)
+        else:
+            enviar_get_rej(newsock)
+    newsock.close()
+    print_if_debug(DEBUG, 'Finalitzacio proces per gestionar comanda get-conf')
+    exit(0)
+
+
 def udp(dades, equips, quit_command):
     """ dhsaui"""
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock_tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     print_if_debug(DEBUG, 'S\'ha creat el socket UDP')
 
     def quit_handler(sign, frame):
@@ -196,6 +334,7 @@ def udp(dades, equips, quit_command):
             print_if_debug(DEBUG, 'S\'ha executat la comanda \'quit\'. Finalitzat servidor.')
             quit_command = True
             sock.close()
+            sock_tcp.close()
             sys.exit()
 
     def manteniment_alives():
@@ -222,9 +361,30 @@ def udp(dades, equips, quit_command):
                     print_if_debug(DEBUG, 'no s\'ha rebut ' + str(k_intervals) + ' ALIVE_INF')
         print_if_debug(DEBUG, 'S\'ha tancat fil per manteniment d\'ALIVES')
 
+    def connexio_tcp():
+        global DEBUG, EQUIPS, quit_command
+        insocks = []
+        print_if_debug(DEBUG, 'Creat canal TCP')
+        sock_tcp.bind(('', int(DADES['TCP-port'])))
+        sock_tcp.listen(5)
+        insocks.append(sock_tcp)
+        while not quit_command:
+            reads, writes, excepts = select.select(insocks, [], [], 0)
+            for s in reads:
+                if s is sock_tcp:
+                    new_sock, client_address = sock_tcp.accept()
+                    insocks.append(new_sock)
+                    pid = os.fork()
+                    if pid == 0:
+                        tcp_data(new_sock, DADES, EQUIPS, client_address)
+        sock_tcp.close()
+        print_if_debug(DEBUG, 'S\'ha tancat canal TCP.')
+
     control_alives = threading.Thread(target=manteniment_alives)
     control_alives.start()
     signal.signal(signal.SIGINT, quit_handler)
+    canal_tcp = threading.Thread(target=connexio_tcp)
+    canal_tcp.start()
     sock.bind(('', int(DADES['UDP-port'])))
     print_if_debug(DEBUG, 'Assignat el socket al port: ' + DADES['UDP-port'])
 

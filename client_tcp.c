@@ -112,6 +112,7 @@ void enviar_arxiu_configuracio(int debug, int fd, struct paquet_tcp paquet, FILE
         strcpy(paquet.dades, linea);
         write(fd, &paquet, sizeof(paquet));
     	print_if_debug(debug, "Enviat: bytes=%i, comanda=%s, nom=%s, mac=%s, alea=%s, dades=%s", sizeof(paquet),tipus_pdu(paquet.type), paquet.equip, paquet.mac, paquet.random_number, paquet.dades);
+        memset(linea,0, sizeof(linea));
     }
     paquet.type = (unsigned char) 0x25;
     strcpy(paquet.dades, "");
