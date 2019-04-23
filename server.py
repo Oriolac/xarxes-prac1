@@ -271,10 +271,17 @@ def enviar_get_nack(sock):
 
 
 def enviar_get_ack(dades, sock, nom_equip, aleatori):
-    data = struct.pack('c7s13s7s150s', chr(0x31), dades['Nom'], dades['MAC'], aleatori, nom_equip + '.cfg')
-    print_if_debug(DEBUG, 'Enviat ' + to_str_dades_udp(data))
-    sock.send(data)
-    return nom_equip + '.cfg'
+    try:
+        open(nom_equip + '.cfg', 'r')
+        data = struct.pack('c7s13s7s150s', chr(0x31), dades['Nom'], dades['MAC'], aleatori, nom_equip + '.cfg')
+        print_if_debug(DEBUG, 'Enviat ' + to_str_dades_udp(data))
+        sock.send(data)
+        return nom_equip + '.cfg', True
+    except IOError:
+        pack = create_empty_pack_tcp(0x33, 'No hi es el fitxer de configuracio: ' + nom_equip + '.cfg')
+        print_if_debug(DEBUG, 'Enviat ' + to_str_dades_udp(pack))
+        sock.send(pack)
+        return None, False
 
 
 def enviar_paquets_get(sock, fitxer, aleatori, dades):
@@ -298,25 +305,30 @@ def tcp_data(newsock, dades, equips, address):
         if esta_registrat:
             existeix, aleatori = errors_addicionals(data_tcp, equips, address)
             if not existeix:
+                print_with_time('MSG.  => Acceptada peticio enviament arxiu configuracio de l\'equip: ' + client)
                 fitxer = enviar_send_ack(dades, newsock, client, aleatori)
                 recepcio_paquets_send(newsock, fitxer)
             else:
                 enviar_send_nack(newsock)
         else:
             enviar_send_rej(newsock)
+        print_with_time('MSG.  => Finalitzat recepcio arxiu configuracio de l\'equip: ' + client)
     elif ord(data_tcp[0]) == 0x30:
         esta_registrat, client = es_client_registrat(data_tcp, equips)
         if esta_registrat:
             existeix, aleatori = errors_addicionals(data_tcp, equips, address)
             if not existeix:
-                fitxer = enviar_get_ack(dades, newsock, client, aleatori)
-                enviar_paquets_get(newsock, fitxer, aleatori, dades)
+                print_with_time('MSG.  => Acceptada peticio obtencio arxiu configuracio de l\'equip: ' + client)
+                fitxer, existencia_fitxer = enviar_get_ack(dades, newsock, client, aleatori)
+                if existencia_fitxer:
+                    enviar_paquets_get(newsock, fitxer, aleatori, dades)
             else:
                 enviar_get_nack(newsock)
         else:
             enviar_get_rej(newsock)
+        print_with_time('MSG.  => Finalitzat enviament arxiu configuracio. de l\'equip: ' + client)
+
     newsock.close()
-    print_if_debug(DEBUG, 'Finalitzacio proces per gestionar comanda get-conf')
     exit(0)
 
 

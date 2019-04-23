@@ -73,9 +73,10 @@ void comunicacio_enviar_fitxer(int debug, int fd, struct sockaddr_in addr_serv, 
     a = connect(fd, (struct sockaddr *) &addr_serv, sizeof(addr_serv));
     if (a < 0)
     {
-        print_with_time("ERROR => No s'ha pogut connectar a l'adreça del servidor.\n");
+        print_with_time("ERROR => No s'ha pogut connectar a l'adreça del servidor.");
     }
     write(fd, &paquet, sizeof(paquet));
+    print_with_time("MSG.  => Sol·licitud d'enviament d'arxiu de configuració al servidor");
 	print_if_debug(debug, "Enviat: bytes=%i, comanda=%s, nom=%s, mac=%s, alea=%s, dades=%s", sizeof(paquet),tipus_pdu(paquet.type), paquet.equip, paquet.mac, paquet.random_number, paquet.dades);
 
     FD_ZERO(&rfds);
@@ -170,7 +171,7 @@ void get_conf(int debug, struct server s, struct client c, char aleatori[7], cha
     addr_serv = addr_servidor(s);
     print_if_debug(debug, "Emplenada l'adreça del servidor i el seu port.");
 
-    file = fopen(boot_file, "r+");
+    file = fopen(boot_file, "w+");
 
     memset(&paquet,0, sizeof(paquet));
     paquet.type= (unsigned char) 0x30;
@@ -203,6 +204,7 @@ void comunicacio_rebre_fitxer(int debug, int fd, struct sockaddr_in addr_serv, s
         print_with_time("ERROR => No s'ha pogut connectar a l'adreça del servidor.\n");
     }
     write(fd, &paquet, sizeof(paquet));
+    print_with_time("MSG.  => Sol·licitud de recepció d'arxiu de configuració al servidor");
 	print_if_debug(debug, "Enviat: bytes=%i, comanda=%s, nom=%s, mac=%s, alea=%s, dades=%s", sizeof(paquet),tipus_pdu(paquet.type), paquet.equip, paquet.mac, paquet.random_number, paquet.dades);
 
     FD_ZERO(&rfds);
@@ -238,7 +240,7 @@ void rebre_arxiu_configuracio(int debug, int fd, struct paquet_tcp paquet, FILE 
     char linea[150];
     int end = 0;
     fseek(file, 0, SEEK_SET);
-    while(fgets(linea, 150, file) && !end)
+    while(!end)
     {
         if(read(fd, &paquet, sizeof(paquet)) > 0)
         {
