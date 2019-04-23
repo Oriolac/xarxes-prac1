@@ -37,6 +37,18 @@ char* tipus_pdu(unsigned char c)
 			return "ALIVE_NACK";
 		case 0x13:
 			return "ALIVE_REJ";
+		case 0x20:
+			return "SEND_FILE";
+		case 0x21:
+			return "SEND_ACK";
+		case 0x22:
+			return "SEND_NACK";
+		case 0x23:
+			return "SEND_REJ";
+		case 0x24:
+			return "SEND_DATA";
+		case 0x25:
+			return "SEND_END";
 		default:
 			return "?";
 	}
